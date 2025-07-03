@@ -1,102 +1,155 @@
-import Image from "next/image";
+'use client';
+
+import { useState, useEffect } from 'react';
+import { VocabularyWord } from '@/types/vocabulary';
+import { loadVocabulary } from '@/utils/vocabulary';
+import RevisionMode from '@/components/RevisionMode';
+import QuizMode from '@/components/QuizMode';
+
+type Mode = 'menu' | 'revision' | 'quiz';
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [mode, setMode] = useState<Mode>('menu');
+  const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
+  const [loading, setLoading] = useState(true);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  useEffect(() => {
+    const loadWords = async () => {
+      try {
+        const words = await loadVocabulary();
+        setVocabulary(words);
+      } catch (error) {
+        console.error('Failed to load vocabulary:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadWords();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading vocabulary...</p>
         </div>
+      </div>
+    );
+  }
+
+  const renderContent = () => {
+    switch (mode) {
+      case 'revision':
+        return <RevisionMode vocabulary={vocabulary} />;
+      case 'quiz':
+        return <QuizMode vocabulary={vocabulary} />;
+      default:
+        return (
+          <div className="max-w-4xl mx-auto p-6 text-center">
+            <div className="mb-12">
+              <h1 className="text-6xl font-bold text-gray-800 mb-4">
+                11+ Vocabulary
+              </h1>
+              <p className="text-xl text-gray-600 mb-2">
+                Master {vocabulary.length} essential words for your 11+ exam
+              </p>
+              <p className="text-lg text-gray-500">
+                Choose a learning mode to get started
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
+              {/* Revision Mode Card */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+                <div className="text-4xl mb-4">📚</div>
+                <h2 className="text-2xl font-bold text-blue-600 mb-4">Revision Mode</h2>
+                <p className="text-gray-600 mb-6">
+                  Study vocabulary with flashcards. See each word with its definition and image.
+                </p>
+                <button
+                  onClick={() => setMode('revision')}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
+                >
+                  Start Revision
+                </button>
+              </div>
+
+              {/* Quiz Mode Card */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+                <div className="text-4xl mb-4">🧠</div>
+                <h2 className="text-2xl font-bold text-purple-600 mb-4">Quiz Mode</h2>
+                <p className="text-gray-600 mb-6">
+                  Test your knowledge with multiple choice questions. Track your progress and improve your score.
+                </p>
+                <button
+                  onClick={() => setMode('quiz')}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
+                >
+                  Start Quiz
+                </button>
+              </div>
+            </div>
+
+            {/* Statistics */}
+            <div className="mt-12 bg-white rounded-xl shadow-lg p-6">
+              <h3 className="text-xl font-semibold text-gray-800 mb-4">Vocabulary Statistics</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">{vocabulary.length}</div>
+                  <div className="text-sm text-gray-600">Total Words</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-green-600">
+                    {vocabulary.filter(w => w.hasImage).length}
+                  </div>
+                  <div className="text-sm text-gray-600">With Images</div>
+                </div>
+                <div className="col-span-2 md:col-span-1">
+                  <div className="text-2xl font-bold text-purple-600">
+                    {Math.round((vocabulary.filter(w => w.hasImage).length / vocabulary.length) * 100)}%
+                  </div>
+                  <div className="text-sm text-gray-600">Image Coverage</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      {/* Header with Navigation */}
+      {mode !== 'menu' && (
+        <header className="bg-white shadow-sm">
+          <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <button
+              onClick={() => setMode('menu')}
+              className="flex items-center text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              <span className="mr-2">←</span>
+              Back to Menu
+            </button>
+            <h1 className="text-xl font-semibold text-gray-800">
+              11+ Vocabulary - {mode === 'revision' ? 'Revision Mode' : 'Quiz Mode'}
+            </h1>
+            <div className="w-24"></div> {/* Spacer for centering */}
+          </div>
+        </header>
+      )}
+
+      {/* Main Content */}
+      <main className="py-8">
+        {renderContent()}
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      {/* Footer */}
+      <footer className="bg-white border-t border-gray-200 py-6 mt-12">
+        <div className="max-w-6xl mx-auto px-6 text-center text-gray-600">
+          <p>11+ Vocabulary Learning Platform | Helping students master essential words</p>
+        </div>
       </footer>
     </div>
   );
