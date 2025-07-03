@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { VocabularyWord, QuizQuestion } from '@/types/vocabulary';
-import { generateQuizQuestion, shuffleArray } from '@/utils/vocabulary';
+import { generateQuizQuestion, shuffleArray, checkImageExists } from '@/utils/vocabulary';
 import Image from 'next/image';
 
 interface QuizModeProps {
@@ -16,12 +16,28 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [quizComplete, setQuizComplete] = useState(false);
+  const [hasImage, setHasImage] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
 
   useEffect(() => {
     if (vocabulary.length > 0) {
       generateQuiz();
     }
   }, [vocabulary]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Check for image when question changes
+  useEffect(() => {
+    if (questions.length > 0 && questions[currentQuestionIndex]) {
+      const currentQuestion = questions[currentQuestionIndex];
+      setImageLoading(true);
+      setHasImage(false);
+      
+      checkImageExists(currentQuestion.word).then((exists) => {
+        setHasImage(exists);
+        setImageLoading(false);
+      });
+    }
+  }, [questions, currentQuestionIndex]);
 
   const generateQuiz = () => {
     const shuffledVocab = shuffleArray(vocabulary).slice(0, 20); // 20 questions
@@ -97,7 +113,6 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   }
 
   const currentQuestion = questions[currentQuestionIndex];
-  const currentWord = vocabulary.find(w => w.word === currentQuestion.word);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -117,7 +132,15 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
           </h1>
 
           {/* Image Display */}
-          {currentWord?.hasImage && (
+          {imageLoading && (
+            <div className="mb-6">
+              <div className="w-64 h-48 mx-auto bg-gray-200 rounded-lg flex items-center justify-center">
+                <div className="text-gray-500">Checking for image...</div>
+              </div>
+            </div>
+          )}
+          
+          {!imageLoading && hasImage && (
             <div className="mb-6">
               <div className="relative w-64 h-48 mx-auto rounded-lg overflow-hidden shadow-md">
                 <Image
@@ -125,6 +148,9 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
                   alt={currentQuestion.word}
                   fill
                   className="object-cover"
+                  onError={() => {
+                    setHasImage(false);
+                  }}
                 />
               </div>
             </div>

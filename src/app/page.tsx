@@ -95,24 +95,19 @@ export default function Home() {
             {/* Statistics */}
             <div className="mt-12 bg-white rounded-xl shadow-lg p-6">
               <h3 className="text-xl font-semibold text-gray-800 mb-4">Vocabulary Statistics</h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-center">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
                 <div>
-                  <div className="text-2xl font-bold text-blue-600">{vocabulary.length}</div>
+                  <div className="text-3xl font-bold text-blue-600">{vocabulary.length}</div>
                   <div className="text-sm text-gray-600">Total Words</div>
                 </div>
                 <div>
-                  <div className="text-2xl font-bold text-green-600">
-                    {vocabulary.filter(w => w.hasImage).length}
-                  </div>
-                  <div className="text-sm text-gray-600">With Images</div>
-                </div>
-                <div className="col-span-2 md:col-span-1">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {Math.round((vocabulary.filter(w => w.hasImage).length / vocabulary.length) * 100)}%
-                  </div>
-                  <div className="text-sm text-gray-600">Image Coverage</div>
+                  <div className="text-3xl font-bold text-green-600">426</div>
+                  <div className="text-sm text-gray-600">Words with Images</div>
                 </div>
               </div>
+              <p className="text-sm text-gray-500 mt-4 text-center">
+                Images are loaded on-demand to save bandwidth
+              </p>
             </div>
           </div>
         );

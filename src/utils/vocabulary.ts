@@ -18,13 +18,11 @@ export async function loadVocabulary(): Promise<VocabularyWord[]> {
         const word = values[0].trim();
         const definition = values[1].trim();
         
-        // Check if image exists
-        const hasImage = await checkImageExists(word);
-        
+        // Don't check image existence here - do it lazily when needed
         vocabulary.push({
           word,
           definition,
-          hasImage
+          hasImage: false // Will be checked lazily
         });
       }
     }
@@ -58,7 +56,7 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-async function checkImageExists(word: string): Promise<boolean> {
+export async function checkImageExists(word: string): Promise<boolean> {
   try {
     const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
     const response = await fetch(`${basePath}/images/${word.toLowerCase()}.jpg`, { method: 'HEAD' });

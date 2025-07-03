@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { VocabularyWord } from '@/types/vocabulary';
+import { checkImageExists } from '@/utils/vocabulary';
 import Image from 'next/image';
 
 interface RevisionModeProps {
@@ -11,8 +12,23 @@ interface RevisionModeProps {
 export default function RevisionMode({ vocabulary }: RevisionModeProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showDefinition, setShowDefinition] = useState(false);
+  const [hasImage, setHasImage] = useState(false);
+  const [imageLoading, setImageLoading] = useState(false);
 
   const currentWord = vocabulary[currentIndex];
+
+  // Check for image when word changes
+  useEffect(() => {
+    if (currentWord) {
+      setImageLoading(true);
+      setHasImage(false);
+      
+      checkImageExists(currentWord.word).then((exists) => {
+        setHasImage(exists);
+        setImageLoading(false);
+      });
+    }
+  }, [currentWord]);
 
   const nextCard = () => {
     setCurrentIndex((prev) => (prev + 1) % vocabulary.length);
@@ -50,7 +66,15 @@ export default function RevisionMode({ vocabulary }: RevisionModeProps) {
         </div>
 
         {/* Image Display */}
-        {currentWord.hasImage && (
+        {imageLoading && (
+          <div className="mb-8">
+            <div className="w-80 h-60 bg-gray-200 rounded-lg flex items-center justify-center">
+              <div className="text-gray-500">Checking for image...</div>
+            </div>
+          </div>
+        )}
+        
+        {!imageLoading && hasImage && (
           <div className="mb-8">
             <div className="relative w-80 h-60 rounded-lg overflow-hidden shadow-md">
               <Image
@@ -61,6 +85,7 @@ export default function RevisionMode({ vocabulary }: RevisionModeProps) {
                 onError={() => {
                   // Handle image load error
                   console.log(`Image not found for: ${currentWord.word}`);
+                  setHasImage(false);
                 }}
               />
             </div>
