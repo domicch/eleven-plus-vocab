@@ -2,7 +2,8 @@ import { VocabularyWord, QuizQuestion } from '@/types/vocabulary';
 
 export async function loadVocabulary(): Promise<VocabularyWord[]> {
   try {
-    const response = await fetch('/vocabulary.csv');
+    const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
+    const response = await fetch(`${basePath}/vocabulary.csv`);
     const csvText = await response.text();
     
     const lines = csvText.trim().split('\n');
@@ -59,7 +60,8 @@ function parseCSVLine(line: string): string[] {
 
 async function checkImageExists(word: string): Promise<boolean> {
   try {
-    const response = await fetch(`/images/${word.toLowerCase()}.jpg`, { method: 'HEAD' });
+    const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
+    const response = await fetch(`${basePath}/images/${word.toLowerCase()}.jpg`, { method: 'HEAD' });
     return response.ok;
   } catch {
     return false;
