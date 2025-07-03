@@ -173,7 +173,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
             } else if (selectedAnswer === index) {
               buttonClass += "border-blue-500 bg-blue-100 text-blue-800";
             } else {
-              buttonClass += "border-gray-300 hover:border-blue-300 hover:bg-blue-50";
+              buttonClass += "border-gray-300 hover:border-blue-300 hover:bg-blue-50 text-gray-800";
             }
 
             return (
