@@ -59,7 +59,7 @@ function parseCSVLine(line: string): string[] {
 export async function checkImageExists(word: string): Promise<boolean> {
   try {
     const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
-    const response = await fetch(`${basePath}/images/${word.toLowerCase()}.jpg`, { method: 'HEAD' });
+    const response = await fetch(`${basePath}/images/words/${word.toLowerCase()}.jpg`, { method: 'HEAD' });
     return response.ok;
   } catch {
     return false;

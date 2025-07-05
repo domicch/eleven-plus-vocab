@@ -144,7 +144,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
             <div className="mb-6">
               <div className="relative w-64 h-48 mx-auto rounded-lg overflow-hidden shadow-md">
                 <Image
-                  src={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/images/${currentQuestion.word.toLowerCase()}.jpg`}
+                  src={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/images/words/${currentQuestion.word.toLowerCase()}.jpg`}
                   alt={currentQuestion.word}
                   fill
                   className="object-cover"

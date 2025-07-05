@@ -78,7 +78,7 @@ export default function RevisionMode({ vocabulary }: RevisionModeProps) {
           <div className="mb-8">
             <div className="relative w-80 h-60 rounded-lg overflow-hidden shadow-md">
               <Image
-                src={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/images/${currentWord.word.toLowerCase()}.jpg`}
+                src={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/images/words/${currentWord.word.toLowerCase()}.jpg`}
                 alt={currentWord.word}
                 fill
                 className="object-cover"
