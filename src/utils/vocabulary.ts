@@ -102,3 +102,42 @@ export function shuffleArray<T>(array: T[]): T[] {
   }
   return shuffled;
 }
+
+export async function getAvailableGreetingImages(): Promise<string[]> {
+  const availableImages: string[] = [];
+  const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
+  
+  // Try common image extensions and numbering patterns
+  const extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+  const maxAttempts = 20; // Check up to 20 images
+  
+  for (let i = 1; i <= maxAttempts; i++) {
+    for (const ext of extensions) {
+      const imagePath = `${basePath}/images/avatar/greeting/greeting-${i}.${ext}`;
+      try {
+        const response = await fetch(imagePath, { method: 'HEAD' });
+        if (response.ok) {
+          availableImages.push(imagePath);
+          break; // Found one with this number, move to next number
+        }
+      } catch {
+        // Image doesn't exist, continue
+      }
+    }
+  }
+  
+  return availableImages;
+}
+
+export async function getRandomGreetingImage(): Promise<string> {
+  const availableImages = await getAvailableGreetingImages();
+  
+  if (availableImages.length === 0) {
+    // Fallback to a default image path
+    const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
+    return `${basePath}/images/avatar/greeting/greeting-1.jpg`;
+  }
+  
+  const randomIndex = Math.floor(Math.random() * availableImages.length);
+  return availableImages[randomIndex];
+}

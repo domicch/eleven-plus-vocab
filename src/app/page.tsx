@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { VocabularyWord } from '@/types/vocabulary';
-import { loadVocabulary } from '@/utils/vocabulary';
+import { loadVocabulary, getRandomGreetingImage } from '@/utils/vocabulary';
 import RevisionMode from '@/components/RevisionMode';
 import QuizMode from '@/components/QuizMode';
+import Image from 'next/image';
 
 type Mode = 'menu' | 'revision' | 'quiz';
 
@@ -12,12 +13,17 @@ export default function Home() {
   const [mode, setMode] = useState<Mode>('menu');
   const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [greetingImage, setGreetingImage] = useState<string>('');
 
   useEffect(() => {
     const loadWords = async () => {
       try {
         const words = await loadVocabulary();
         setVocabulary(words);
+        
+        // Load random greeting image
+        const randomGreeting = await getRandomGreetingImage();
+        setGreetingImage(randomGreeting);
       } catch (error) {
         console.error('Failed to load vocabulary:', error);
       } finally {
@@ -48,10 +54,39 @@ export default function Home() {
       default:
         return (
           <div className="max-w-4xl mx-auto p-6 text-center">
-            <div className="mb-12">
+            {/* Title */}
+            <div className="mb-8">
               <h1 className="text-6xl font-bold text-gray-800 mb-4">
-                11+ Vocabulary
+                Wocab
               </h1>
+            </div>
+            
+            {/* Greeting Section with Dog Avatar */}
+            {greetingImage && (
+              <div className="mb-8 flex justify-center items-center gap-6">
+                {/* Dog Image - No circular cropping */}
+                <div className="flex-shrink-0">
+                  <Image
+                    src={greetingImage}
+                    alt="Shiba Inu mascot"
+                    width={128}
+                    height={128}
+                    className="object-contain shadow-lg"
+                  />
+                </div>
+                
+                {/* Speech Bubble - To the right of dog */}
+                <div className="relative bg-white rounded-2xl shadow-lg p-4 max-w-xs">
+                  <p className="text-lg font-semibold text-gray-800">
+                    Wo Wo! Welcome to Wocab!
+                  </p>
+                  {/* Speech bubble tail pointing left to dog */}
+                  <div className="absolute left-[-8px] top-1/2 transform -translate-y-1/2 w-0 h-0 border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-white"></div>
+                </div>
+              </div>
+            )}
+            
+            <div className="mb-12">
               <p className="text-xl text-gray-600 mb-2">
                 Master {vocabulary.length} essential words for your 11+ exam
               </p>
@@ -128,7 +163,7 @@ export default function Home() {
               Back to Menu
             </button>
             <h1 className="text-xl font-semibold text-gray-800">
-              11+ Vocabulary - {mode === 'revision' ? 'Revision Mode' : 'Quiz Mode'}
+              Wocab - {mode === 'revision' ? 'Revision Mode' : 'Quiz Mode'}
             </h1>
             <div className="w-24"></div> {/* Spacer for centering */}
           </div>
@@ -143,7 +178,7 @@ export default function Home() {
       {/* Footer */}
       <footer className="bg-white border-t border-gray-200 py-6 mt-12">
         <div className="max-w-6xl mx-auto px-6 text-center text-gray-600">
-          <p>11+ Vocabulary Learning Platform | Helping students master essential words</p>
+          <p>Wocab Learning Platform | Helping students master essential words</p>
         </div>
       </footer>
     </div>
