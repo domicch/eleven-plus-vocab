@@ -104,29 +104,23 @@ export function shuffleArray<T>(array: T[]): T[] {
 }
 
 export async function getAvailableGreetingImages(): Promise<string[]> {
-  const availableImages: string[] = [];
-  const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
-  
-  // Try common image extensions and numbering patterns
-  const extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
-  const maxAttempts = 20; // Check up to 20 images
-  
-  for (let i = 1; i <= maxAttempts; i++) {
-    for (const ext of extensions) {
-      const imagePath = `${basePath}/images/avatar/greeting/greeting-${i}.${ext}`;
-      try {
-        const response = await fetch(imagePath, { method: 'HEAD' });
-        if (response.ok) {
-          availableImages.push(imagePath);
-          break; // Found one with this number, move to next number
-        }
-      } catch {
-        // Image doesn't exist, continue
-      }
+  try {
+    const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
+    const response = await fetch(`${basePath}/greeting-images.json`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch greeting images list');
     }
+    
+    const imageFilenames: string[] = await response.json();
+    
+    // Convert filenames to full paths
+    return imageFilenames.map(filename => `${basePath}/images/avatar/greeting/${filename}`);
+  } catch (error) {
+    console.error('Error loading greeting images list:', error);
+    // Return empty array as fallback
+    return [];
   }
-  
-  return availableImages;
 }
 
 export async function getRandomGreetingImage(): Promise<string> {

@@ -71,7 +71,7 @@ export default function Home() {
                     alt="Shiba Inu mascot"
                     width={128}
                     height={128}
-                    className="object-contain shadow-lg"
+                    className="object-contain"
                   />
                 </div>
                 
