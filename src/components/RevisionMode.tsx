@@ -14,8 +14,32 @@ export default function RevisionMode({ vocabulary }: RevisionModeProps) {
   const [showDefinition, setShowDefinition] = useState(false);
   const [hasImage, setHasImage] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+  const [letterIndex, setLetterIndex] = useState<{ [letter: string]: number }>({});
 
   const currentWord = vocabulary[currentIndex];
+
+  // Create alphabetical index when vocabulary changes
+  useEffect(() => {
+    if (vocabulary.length > 0) {
+      const index: { [letter: string]: number } = {};
+      vocabulary.forEach((word, idx) => {
+        const firstLetter = word.word.charAt(0).toUpperCase();
+        if (!index[firstLetter]) {
+          index[firstLetter] = idx;
+        }
+      });
+      setLetterIndex(index);
+    }
+  }, [vocabulary]);
+
+  // Function to jump to first word starting with specific letter
+  const jumpToLetter = (letter: string) => {
+    const targetIndex = letterIndex[letter];
+    if (targetIndex !== undefined) {
+      setCurrentIndex(targetIndex);
+      setShowDefinition(false);
+    }
+  };
 
   // Check for image when word changes
   useEffect(() => {
@@ -55,6 +79,37 @@ export default function RevisionMode({ vocabulary }: RevisionModeProps) {
         <p className="text-gray-600">
           Card {currentIndex + 1} of {vocabulary.length}
         </p>
+      </div>
+
+      {/* A-Z Index */}
+      <div className="mb-6 bg-white rounded-xl shadow-md p-4">
+        <h3 className="text-sm font-semibold text-gray-600 mb-3 text-center">Quick Jump to Letter</h3>
+        <div className="flex flex-wrap justify-center gap-2 max-w-3xl mx-auto">
+          {Array.from({ length: 26 }, (_, i) => {
+            const letter = String.fromCharCode(65 + i); // A-Z
+            const hasWords = letterIndex[letter] !== undefined;
+            const isCurrentLetter = currentWord && currentWord.word.charAt(0).toUpperCase() === letter;
+            
+            return (
+              <button
+                key={letter}
+                onClick={() => jumpToLetter(letter)}
+                disabled={!hasWords}
+                className={`
+                  w-8 h-8 rounded-lg font-semibold text-sm transition-all
+                  ${isCurrentLetter 
+                    ? 'bg-blue-600 text-white shadow-md' 
+                    : hasWords 
+                      ? 'bg-gray-100 text-gray-700 hover:bg-blue-100 hover:text-blue-600' 
+                      : 'bg-gray-50 text-gray-300 cursor-not-allowed'
+                  }
+                `}
+              >
+                {letter}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <div className="bg-white rounded-xl shadow-lg p-8 min-h-[500px] flex flex-col justify-center items-center">
