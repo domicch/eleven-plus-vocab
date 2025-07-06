@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { VocabularyWord, QuizQuestion } from '@/types/vocabulary';
-import { generateQuizQuestion, shuffleArray, checkImageExists } from '@/utils/vocabulary';
+import { generateQuizQuestion, shuffleArray, checkImageExists, getRandomDaleImage } from '@/utils/vocabulary';
 import Image from 'next/image';
 
 interface QuizModeProps {
@@ -18,6 +18,9 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   const [quizComplete, setQuizComplete] = useState(false);
   const [hasImage, setHasImage] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
+  const [showDaleReaction, setShowDaleReaction] = useState(false);
+  const [daleReactionImage, setDaleReactionImage] = useState<string>('');
+  const [daleReactionMessage, setDaleReactionMessage] = useState<string>('');
 
   useEffect(() => {
     if (vocabulary.length > 0) {
@@ -52,19 +55,42 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
     setShowResult(false);
   };
 
+  const showDaleReactionFunc = async (isCorrect: boolean) => {
+    const mood: 'happy' | 'unhappy' = isCorrect ? 'happy' : 'unhappy';
+    const message = isCorrect ? 'Congratulations!' : 'Oh no!';
+    
+    try {
+      const reactionImage = await getRandomDaleImage(mood);
+      setDaleReactionImage(reactionImage);
+      setDaleReactionMessage(message);
+      setShowDaleReaction(true);
+      
+      // Hide Dale after 2 seconds
+      setTimeout(() => {
+        setShowDaleReaction(false);
+      }, 2000);
+    } catch (error) {
+      console.error('Error loading Dale reaction image:', error);
+    }
+  };
+
   const handleAnswerSelect = (answerIndex: number) => {
     if (showResult) return;
     setSelectedAnswer(answerIndex);
   };
 
-  const submitAnswer = () => {
+  const submitAnswer = async () => {
     if (selectedAnswer === null) return;
     
     setShowResult(true);
     
-    if (selectedAnswer === questions[currentQuestionIndex].correctIndex) {
+    const isCorrect = selectedAnswer === questions[currentQuestionIndex].correctIndex;
+    if (isCorrect) {
       setScore(score + 1);
     }
+    
+    // Show Dale's reaction
+    await showDaleReactionFunc(isCorrect);
   };
 
   const nextQuestion = () => {
@@ -224,6 +250,33 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
           style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
         ></div>
       </div>
+
+      {/* Dale Reaction Overlay */}
+      {showDaleReaction && daleReactionImage && (
+        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="flex items-center gap-6">
+            {/* Dale Image */}
+            <div className="w-64 h-64">
+              <Image
+                src={daleReactionImage}
+                alt="Dale reaction"
+                width={256}
+                height={256}
+                className="object-contain w-full h-full"
+              />
+            </div>
+            
+            {/* Speech Bubble - To the right of Dale */}
+            <div className="relative bg-white border-2 border-gray-300 rounded-2xl shadow-lg p-6 max-w-xs">
+              <p className="text-xl font-bold text-gray-800 text-center">
+                {daleReactionMessage}
+              </p>
+              {/* Speech bubble tail pointing left to Dale */}
+              <div className="absolute left-[-8px] top-1/2 transform -translate-y-1/2 w-0 h-0 border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-white"></div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

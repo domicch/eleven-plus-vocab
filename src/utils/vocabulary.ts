@@ -151,3 +151,36 @@ export function speakWord(word: string): void {
     console.warn('Speech synthesis not supported in this browser');
   }
 }
+
+export async function getAvailableDaleImages(mood: 'happy' | 'unhappy'): Promise<string[]> {
+  try {
+    const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
+    const response = await fetch(`${basePath}/${mood}-images.json`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${mood} images list`);
+    }
+    
+    const imageFilenames: string[] = await response.json();
+    
+    // Convert filenames to full paths
+    return imageFilenames.map(filename => `${basePath}/images/avatar/${mood}/${filename}`);
+  } catch (error) {
+    console.error(`Error loading ${mood} images list:`, error);
+    // Return empty array as fallback
+    return [];
+  }
+}
+
+export async function getRandomDaleImage(mood: 'happy' | 'unhappy'): Promise<string> {
+  const availableImages = await getAvailableDaleImages(mood);
+  
+  if (availableImages.length === 0) {
+    // Fallback to a default image path
+    const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
+    return `${basePath}/images/avatar/${mood}/${mood}-1.png`;
+  }
+  
+  const randomIndex = Math.floor(Math.random() * availableImages.length);
+  return availableImages[randomIndex];
+}
