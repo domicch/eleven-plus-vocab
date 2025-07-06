@@ -3,14 +3,15 @@ const path = require('path');
 
 // Path to the greeting images directory
 const greetingImagesDir = path.join(__dirname, '../public/images/avatar/greeting');
-const outputFile = path.join(__dirname, '../public/greeting-images.json');
+const greetingImagesOutputFile = path.join(__dirname, '../public/greeting-images.json');
+const manifestOutputFile = path.join(__dirname, '../public/site.webmanifest');
 
 function generateGreetingImagesList() {
   try {
     // Check if the greeting images directory exists
     if (!fs.existsSync(greetingImagesDir)) {
       console.log('Greeting images directory not found. Creating empty list.');
-      fs.writeFileSync(outputFile, JSON.stringify([], null, 2));
+      fs.writeFileSync(greetingImagesOutputFile, JSON.stringify([], null, 2));
       return;
     }
 
@@ -33,7 +34,7 @@ function generateGreetingImagesList() {
       });
 
     // Write the list to a JSON file
-    fs.writeFileSync(outputFile, JSON.stringify(greetingImages, null, 2));
+    fs.writeFileSync(greetingImagesOutputFile, JSON.stringify(greetingImages, null, 2));
     
     console.log(`Generated greeting images list with ${greetingImages.length} images:`);
     greetingImages.forEach(image => console.log(`  - ${image}`));
@@ -41,8 +42,54 @@ function generateGreetingImagesList() {
   } catch (error) {
     console.error('Error generating greeting images list:', error);
     // Create empty list as fallback
-    fs.writeFileSync(outputFile, JSON.stringify([], null, 2));
+    fs.writeFileSync(greetingImagesOutputFile, JSON.stringify([], null, 2));
+  }
+}
+
+function generateManifest() {
+  try {
+    // Determine if this is a production build - check multiple indicators
+    const isProduction = process.env.NODE_ENV === 'production' || 
+                         process.env.GITHUB_ACTIONS === 'true' ||
+                         process.argv.includes('--production');
+    const basePath = isProduction ? '/eleven-plus-vocab' : '';
+    
+    const manifest = {
+      name: "Wocab - 11+ Vocabulary Learning",
+      short_name: "Wocab",
+      description: "Master essential vocabulary words for your 11+ exam with Wocab. Interactive flashcards and quizzes featuring Dale the Shiba Inu!",
+      start_url: `${basePath}/`,
+      display: "standalone",
+      background_color: "#ffffff",
+      theme_color: "#3B82F6",
+      icons: [
+        {
+          src: `${basePath}/android-chrome-192x192.png`,
+          sizes: "192x192",
+          type: "image/png"
+        },
+        {
+          src: `${basePath}/android-chrome-512x512.png`,
+          sizes: "512x512",
+          type: "image/png"
+        },
+        {
+          src: `${basePath}/apple-touch-icon.png`,
+          sizes: "180x180",
+          type: "image/png"
+        }
+      ]
+    };
+
+    // Write the manifest file
+    fs.writeFileSync(manifestOutputFile, JSON.stringify(manifest, null, 2));
+    
+    console.log(`Generated manifest for ${isProduction ? 'production' : 'development'} with base path: "${basePath}"`);
+    
+  } catch (error) {
+    console.error('Error generating manifest:', error);
   }
 }
 
 generateGreetingImagesList();
+generateManifest();

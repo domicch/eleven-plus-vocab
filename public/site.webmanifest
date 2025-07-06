@@ -2,23 +2,23 @@
   "name": "Wocab - 11+ Vocabulary Learning",
   "short_name": "Wocab",
   "description": "Master essential vocabulary words for your 11+ exam with Wocab. Interactive flashcards and quizzes featuring Dale the Shiba Inu!",
-  "start_url": "/",
+  "start_url": "/eleven-plus-vocab/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#3B82F6",
   "icons": [
     {
-      "src": "/android-chrome-192x192.png",
+      "src": "/eleven-plus-vocab/android-chrome-192x192.png",
       "sizes": "192x192",
       "type": "image/png"
     },
     {
-      "src": "/android-chrome-512x512.png",
+      "src": "/eleven-plus-vocab/android-chrome-512x512.png",
       "sizes": "512x512",
       "type": "image/png"
     },
     {
-      "src": "/apple-touch-icon.png",
+      "src": "/eleven-plus-vocab/apple-touch-icon.png",
       "sizes": "180x180",
       "type": "image/png"
     }

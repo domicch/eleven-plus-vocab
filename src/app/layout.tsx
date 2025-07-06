@@ -26,14 +26,14 @@ export default function RootLayout({
     <html lang="en">
       <head>
         {/* Android Chrome icons */}
-        <link rel="icon" type="image/png" sizes="192x192" href="/android-chrome-192x192.png" />
-        <link rel="icon" type="image/png" sizes="512x512" href="/android-chrome-512x512.png" />
+        <link rel="icon" type="image/png" sizes="192x192" href={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/android-chrome-192x192.png`} />
+        <link rel="icon" type="image/png" sizes="512x512" href={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/android-chrome-512x512.png`} />
         {/* Apple touch icons */}
-        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/apple-touch-icon.png`} />
         {/* Standard favicon */}
-        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/x-icon" href={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/favicon.ico`} />
         {/* Web app manifest */}
-        <link rel="manifest" href="/site.webmanifest" />
+        <link rel="manifest" href={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/site.webmanifest`} />
         <meta name="theme-color" content="#3B82F6" />
       </head>
       <body
