@@ -135,3 +135,19 @@ export async function getRandomGreetingImage(): Promise<string> {
   const randomIndex = Math.floor(Math.random() * availableImages.length);
   return availableImages[randomIndex];
 }
+
+export function speakWord(word: string): void {
+  if ('speechSynthesis' in window) {
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(word);
+    utterance.rate = 0.8; // Slightly slower for clarity
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    
+    window.speechSynthesis.speak(utterance);
+  } else {
+    console.warn('Speech synthesis not supported in this browser');
+  }
+}
