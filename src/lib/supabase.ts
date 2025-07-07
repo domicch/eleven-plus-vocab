@@ -1,6 +1,11 @@
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs'
 
-export const supabase = createClientComponentClient()
+// Only create client if we have the required environment variables
+export const supabase = typeof window !== 'undefined' && 
+  process.env.NEXT_PUBLIC_SUPABASE_URL && 
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  ? createClientComponentClient()
+  : null
 
 export type Database = {
   public: {

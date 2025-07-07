@@ -10,6 +10,11 @@ export default function Auth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -27,16 +32,24 @@ export default function Auth() {
   }, []);
 
   const signInWithGoogle = async () => {
+    if (!supabase) return;
+    
+    const redirectUrl = process.env.NODE_ENV === 'production' 
+      ? 'https://domicch.github.io/eleven-plus-vocab/'
+      : window.location.origin;
+    
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo: window.location.origin
+        redirectTo: redirectUrl
       }
     });
     if (error) console.error('Error signing in:', error);
   };
 
   const signOut = async () => {
+    if (!supabase) return;
+    
     const { error } = await supabase.auth.signOut();
     if (error) console.error('Error signing out:', error);
   };
@@ -45,6 +58,16 @@ export default function Auth() {
     return (
       <div className="flex items-center justify-center p-4">
         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (!supabase) {
+    return (
+      <div className="text-center p-6 bg-gray-100 rounded-lg">
+        <p className="text-gray-600">
+          Authentication temporarily unavailable. Please try again later.
+        </p>
       </div>
     );
   }
