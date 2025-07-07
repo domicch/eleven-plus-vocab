@@ -6,6 +6,9 @@ import { loadVocabulary, getRandomGreetingImage } from '@/utils/vocabulary';
 import RevisionMode from '@/components/RevisionMode';
 import QuizMode from '@/components/QuizMode';
 import Auth from '@/components/Auth';
+import ScoreHistory from '@/components/ScoreHistory';
+import { supabase } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
 type Mode = 'menu' | 'revision' | 'quiz';
@@ -15,6 +18,7 @@ export default function Home() {
   const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
   const [loading, setLoading] = useState(true);
   const [greetingImage, setGreetingImage] = useState<string>('');
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     const loadWords = async () => {
@@ -33,6 +37,23 @@ export default function Home() {
     };
 
     loadWords();
+  }, []);
+
+  // Get current user
+  useEffect(() => {
+    if (!supabase) return;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   if (loading) {
@@ -100,6 +121,13 @@ export default function Home() {
             <div className="mb-8">
               <Auth />
             </div>
+
+            {/* Score History Section (only for logged in users) */}
+            {user && (
+              <div className="mb-8">
+                <ScoreHistory user={user} />
+              </div>
+            )}
 
             <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
               {/* Revision Mode Card */}

@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { VocabularyWord, QuizQuestion } from '@/types/vocabulary';
 import { generateQuizQuestion, shuffleArray, checkImageExists, getRandomDaleImage } from '@/utils/vocabulary';
+import { supabase } from '@/lib/supabase';
+import type { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
 interface QuizModeProps {
@@ -21,12 +23,30 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   const [showDaleReaction, setShowDaleReaction] = useState(false);
   const [daleReactionImage, setDaleReactionImage] = useState<string>('');
   const [daleReactionMessage, setDaleReactionMessage] = useState<string>('');
+  const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     if (vocabulary.length > 0) {
       generateQuiz();
     }
   }, [vocabulary]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Get current user
+  useEffect(() => {
+    if (!supabase) return;
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   // Check for image when question changes
   useEffect(() => {
@@ -96,10 +116,34 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   const nextQuestion = () => {
     if (currentQuestionIndex + 1 >= questions.length) {
       setQuizComplete(true);
+      // Save the quiz score for logged-in users
+      saveQuizScore(score, questions.length);
     } else {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer(null);
       setShowResult(false);
+    }
+  };
+
+  const saveQuizScore = async (finalScore: number, totalQuestions: number) => {
+    if (!supabase || !user) return;
+
+    try {
+      const { error } = await supabase
+        .from('quiz_scores')
+        .insert({
+          user_id: user.id,
+          score: finalScore,
+          total_questions: totalQuestions,
+        });
+
+      if (error) {
+        console.error('Error saving quiz score:', error);
+      } else {
+        console.log('Quiz score saved successfully!');
+      }
+    } catch (error) {
+      console.error('Error saving quiz score:', error);
     }
   };
 
@@ -120,13 +164,23 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
           <p className="text-2xl text-gray-700 mb-6">
             Your Score: <span className="font-bold text-blue-600">{score}/{questions.length}</span>
           </p>
-          <p className="text-lg text-gray-600 mb-8">
+          <p className="text-lg text-gray-600 mb-4">
             {score >= questions.length * 0.8 
               ? "Excellent work! You have a great understanding of these words!"
               : score >= questions.length * 0.6
               ? "Good job! Keep practicing to improve your vocabulary."
               : "Keep studying! Practice makes perfect."}
           </p>
+          {user && (
+            <p className="text-sm text-green-600 mb-8">
+              ✓ Your score has been saved to your profile!
+            </p>
+          )}
+          {!user && (
+            <p className="text-sm text-gray-500 mb-8">
+              💡 Sign in to save your scores and track your progress!
+            </p>
+          )}
           <button
             onClick={restartQuiz}
             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
