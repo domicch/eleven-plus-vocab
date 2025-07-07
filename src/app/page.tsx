@@ -5,6 +5,7 @@ import { VocabularyWord } from '@/types/vocabulary';
 import { loadVocabulary, getRandomGreetingImage } from '@/utils/vocabulary';
 import RevisionMode from '@/components/RevisionMode';
 import QuizMode from '@/components/QuizMode';
+import Auth from '@/components/Auth';
 import Image from 'next/image';
 
 type Mode = 'menu' | 'revision' | 'quiz';
@@ -86,13 +87,18 @@ export default function Home() {
               </div>
             )}
             
-            <div className="mb-12">
+            <div className="mb-8">
               <p className="text-xl text-gray-600 mb-2">
                 Master {vocabulary.length} essential words for your 11+ exam
               </p>
               <p className="text-lg text-gray-500">
                 Choose a learning mode to get started
               </p>
+            </div>
+
+            {/* Authentication Section */}
+            <div className="mb-8">
+              <Auth />
             </div>
 
             <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
