@@ -141,12 +141,144 @@ export function speakWord(word: string): void {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
     
-    const utterance = new SpeechSynthesisUtterance(word);
-    utterance.rate = 0.8; // Slightly slower for clarity
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
+    const speakWithVoice = () => {
+      const utterance = new SpeechSynthesisUtterance(word);
+      
+      // iOS-specific fixes for proper English pronunciation (mobile only)
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && 'ontouchstart' in window;
+      
+      if (isIOS) {
+        // On iOS, use more specific language codes that work better
+        utterance.lang = 'en-US';
+        
+        // Get all available voices
+        const voices = window.speechSynthesis.getVoices();
+        
+        // Look for specific iOS English voices that work well
+        const preferredVoices = [
+          'Samantha', 'Alex', 'Victoria', 'Fred', 'Vicki', 'Daniel'
+        ];
+        
+        let selectedVoice = null;
+        
+        // Try to find a preferred English voice by name
+        for (const voiceName of preferredVoices) {
+          selectedVoice = voices.find(voice => 
+            voice.name.includes(voiceName) && voice.lang.startsWith('en')
+          );
+          if (selectedVoice) break;
+        }
+        
+        // Fallback to any English voice
+        if (!selectedVoice) {
+          selectedVoice = voices.find(voice => 
+            voice.lang === 'en-US' || voice.lang === 'en-GB'
+          ) || voices.find(voice => voice.lang.startsWith('en'));
+        }
+        
+        if (selectedVoice) {
+          utterance.voice = selectedVoice;
+        }
+        
+        // iOS-specific speech settings
+        utterance.rate = 0.7; // Slower rate works better on iOS
+        utterance.pitch = 1.0;
+        utterance.volume = 0.8;
+        
+      } else {
+        // Non-iOS devices (including macOS)
+        utterance.lang = 'en-US';
+        
+        const voices = window.speechSynthesis.getVoices();
+        const isMac = /Mac|macOS/.test(navigator.userAgent);
+        
+        if (isMac) {
+          // macOS-specific voice selection
+          const preferredMacVoices = ['Alex', 'Samantha', 'Victoria', 'Fred'];
+          let selectedVoice = null;
+          
+          // Try to find a preferred macOS voice
+          for (const voiceName of preferredMacVoices) {
+            selectedVoice = voices.find(voice => 
+              voice.name === voiceName && voice.lang.startsWith('en')
+            );
+            if (selectedVoice) break;
+          }
+          
+          // Fallback to any English voice
+          if (!selectedVoice) {
+            selectedVoice = voices.find(voice => 
+              voice.lang === 'en-US'
+            ) || voices.find(voice => 
+              voice.lang.startsWith('en')
+            );
+          }
+          
+          if (selectedVoice) {
+            utterance.voice = selectedVoice;
+          }
+        } else {
+          // Other devices (Windows, Linux, etc.)
+          const englishVoice = voices.find(voice => 
+            voice.lang.startsWith('en') && voice.lang.includes('US')
+          ) || voices.find(voice => 
+            voice.lang.startsWith('en')
+          );
+          
+          if (englishVoice) {
+            utterance.voice = englishVoice;
+          }
+        }
+        
+        utterance.rate = 0.8;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+      }
+      
+      // Add error handling
+      utterance.onerror = (event) => {
+        console.warn('Speech synthesis error:', event.error);
+      };
+      
+      window.speechSynthesis.speak(utterance);
+    };
     
-    window.speechSynthesis.speak(utterance);
+    // iOS needs special handling for voice loading (mobile only)
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && 'ontouchstart' in window;
+    
+    if (isIOS) {
+      // On iOS, always wait for voiceschanged event
+      const handleVoicesChanged = () => {
+        window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+        setTimeout(speakWithVoice, 50); // Small delay for iOS
+      };
+      
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        speakWithVoice();
+      } else {
+        window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+        // Trigger voice loading on iOS
+        window.speechSynthesis.getVoices();
+      }
+    } else {
+      // Non-iOS handling
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        speakWithVoice();
+      } else {
+        const handleVoicesChanged = () => {
+          window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+          speakWithVoice();
+        };
+        window.speechSynthesis.addEventListener('voiceschanged', handleVoicesChanged);
+        
+        setTimeout(() => {
+          window.speechSynthesis.removeEventListener('voiceschanged', handleVoicesChanged);
+          speakWithVoice();
+        }, 100);
+      }
+    }
   } else {
     console.warn('Speech synthesis not supported in this browser');
   }
