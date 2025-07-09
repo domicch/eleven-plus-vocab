@@ -184,9 +184,9 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
         console.log('Quiz score saved successfully!');
       }
 
-      // Check if user passed quiz (80% or higher) and mark today as completed
+      // Check if user passed quiz (50% or higher) and mark today as completed
       const percentage = (finalScore / totalQuestions) * 100;
-      if (percentage >= 80 && !todayCompleted) {
+      if (percentage >= 50 && !todayCompleted) {
         await markTodayCompleted(user.id);
         setTodayCompleted(true);
         setEarnedStar(true);
@@ -216,7 +216,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
           <p className="text-lg text-gray-600 mb-4">
             {score >= questions.length * 0.8 
               ? "Excellent work! You have a great understanding of these words!"
-              : score >= questions.length * 0.6
+              : score >= questions.length * 0.5
               ? "Good job! Keep practicing to improve your vocabulary."
               : "Keep studying! Practice makes perfect."}
           </p>
@@ -230,14 +230,14 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
                   ⭐ You earned your daily star! Keep up the streak!
                 </p>
               )}
-              {!earnedStar && score >= questions.length * 0.8 && todayCompleted && (
+              {!earnedStar && score >= questions.length * 0.5 && todayCompleted && (
                 <p className="text-sm text-blue-600">
                   ⭐ You already earned your daily star today!
                 </p>
               )}
-              {!earnedStar && score < questions.length * 0.8 && (
+              {!earnedStar && score < questions.length * 0.5 && (
                 <p className="text-sm text-orange-600">
-                  📚 Score 80% or higher to earn your daily star!
+                  📚 Score 50% or higher to earn your daily star!
                 </p>
               )}
             </div>
