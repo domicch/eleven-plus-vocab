@@ -28,6 +28,30 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   const [todayCompleted, setTodayCompleted] = useState(false);
   const [earnedStar, setEarnedStar] = useState(false);
 
+  const playCorrectSound = () => {
+    try {
+      const audio = new Audio(`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/sound/correct.mp3`);
+      audio.volume = 0.5; // Set volume to 50% to not be too loud
+      audio.play().catch(error => {
+        console.warn('Could not play correct sound:', error);
+      });
+    } catch (error) {
+      console.warn('Error creating audio element:', error);
+    }
+  };
+
+  const playWrongSound = () => {
+    try {
+      const audio = new Audio(`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/sound/wrong.mp3`);
+      audio.volume = 0.5; // Set volume to 50% to not be too loud
+      audio.play().catch(error => {
+        console.warn('Could not play wrong sound:', error);
+      });
+    } catch (error) {
+      console.warn('Error creating audio element:', error);
+    }
+  };
+
   useEffect(() => {
     if (vocabulary.length > 0) {
       generateQuiz();
@@ -117,6 +141,11 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
     const isCorrect = selectedAnswer === questions[currentQuestionIndex].correctIndex;
     if (isCorrect) {
       setScore(score + 1);
+      // Play correct sound effect
+      playCorrectSound();
+    } else {
+      // Play wrong sound effect
+      playWrongSound();
     }
     
     // Show Dale's reaction
