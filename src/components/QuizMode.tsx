@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { VocabularyWord, QuizQuestion } from '@/types/vocabulary';
 import { generateQuizQuestion, shuffleArray, checkImageExists, getRandomDaleImage } from '@/utils/vocabulary';
 import { supabase } from '@/lib/supabase';
+import { markTodayCompleted, checkTodayCompletion } from '@/utils/streaks';
 import type { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
@@ -24,6 +25,8 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   const [daleReactionImage, setDaleReactionImage] = useState<string>('');
   const [daleReactionMessage, setDaleReactionMessage] = useState<string>('');
   const [user, setUser] = useState<User | null>(null);
+  const [todayCompleted, setTodayCompleted] = useState(false);
+  const [earnedStar, setEarnedStar] = useState(false);
 
   useEffect(() => {
     if (vocabulary.length > 0) {
@@ -48,6 +51,13 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Check today's completion status
+  useEffect(() => {
+    if (user) {
+      checkTodayCompletion(user.id).then(setTodayCompleted);
+    }
+  }, [user]);
+
   // Check for image when question changes
   useEffect(() => {
     if (questions.length > 0 && questions[currentQuestionIndex]) {
@@ -63,7 +73,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   }, [questions, currentQuestionIndex]);
 
   const generateQuiz = () => {
-    const shuffledVocab = shuffleArray(vocabulary).slice(0, 20); // 20 questions
+    const shuffledVocab = shuffleArray(vocabulary).slice(0, 10); // 10 questions
     const newQuestions = shuffledVocab.map(word => 
       generateQuizQuestion(word, vocabulary)
     );
@@ -116,8 +126,10 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   const nextQuestion = () => {
     if (currentQuestionIndex + 1 >= questions.length) {
       setQuizComplete(true);
+      // Calculate final score (including current answer if correct)
+      const finalScore = score + (selectedAnswer === questions[currentQuestionIndex].correctIndex ? 1 : 0);
       // Save the quiz score for logged-in users
-      saveQuizScore(score, questions.length);
+      saveQuizScore(finalScore, questions.length);
     } else {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer(null);
@@ -141,6 +153,14 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
         console.error('Error saving quiz score:', error);
       } else {
         console.log('Quiz score saved successfully!');
+      }
+
+      // Check if user passed quiz (80% or higher) and mark today as completed
+      const percentage = (finalScore / totalQuestions) * 100;
+      if (percentage >= 80 && !todayCompleted) {
+        await markTodayCompleted(user.id);
+        setTodayCompleted(true);
+        setEarnedStar(true);
       }
     } catch (error) {
       console.error('Error saving quiz score:', error);
@@ -172,13 +192,30 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
               : "Keep studying! Practice makes perfect."}
           </p>
           {user && (
-            <p className="text-sm text-green-600 mb-8">
-              ✓ Your score has been saved to your profile!
-            </p>
+            <div className="mb-8">
+              <p className="text-sm text-green-600 mb-2">
+                ✓ Your score has been saved to your profile!
+              </p>
+              {earnedStar && (
+                <p className="text-lg text-yellow-600 font-semibold">
+                  ⭐ You earned your daily star! Keep up the streak!
+                </p>
+              )}
+              {!earnedStar && score >= questions.length * 0.8 && todayCompleted && (
+                <p className="text-sm text-blue-600">
+                  ⭐ You already earned your daily star today!
+                </p>
+              )}
+              {!earnedStar && score < questions.length * 0.8 && (
+                <p className="text-sm text-orange-600">
+                  📚 Score 80% or higher to earn your daily star!
+                </p>
+              )}
+            </div>
           )}
           {!user && (
             <p className="text-sm text-gray-500 mb-8">
-              💡 Sign in to save your scores and track your progress!
+              💡 Sign in to save your scores and track your daily streak!
             </p>
           )}
           <button

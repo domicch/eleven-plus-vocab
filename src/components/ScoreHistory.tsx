@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 
@@ -19,16 +19,7 @@ export default function ScoreHistory({ user }: ScoreHistoryProps) {
   const [scores, setScores] = useState<QuizScore[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!supabase || !user) {
-      setLoading(false);
-      return;
-    }
-
-    loadScoreHistory();
-  }, [user]);
-
-  const loadScoreHistory = async () => {
+  const loadScoreHistory = useCallback(async () => {
     if (!supabase || !user) return;
 
     try {
@@ -49,7 +40,16 @@ export default function ScoreHistory({ user }: ScoreHistoryProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (!supabase || !user) {
+      setLoading(false);
+      return;
+    }
+
+    loadScoreHistory();
+  }, [user, loadScoreHistory]);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);

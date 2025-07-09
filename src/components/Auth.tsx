@@ -36,7 +36,7 @@ export default function Auth() {
     
     const redirectUrl = process.env.NODE_ENV === 'production' 
       ? 'https://domicch.github.io/eleven-plus-vocab/'
-      : window.location.origin;
+      : 'http://localhost:3000';
     
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',

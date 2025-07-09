@@ -7,6 +7,7 @@ import RevisionMode from '@/components/RevisionMode';
 import QuizMode from '@/components/QuizMode';
 import Auth from '@/components/Auth';
 import ScoreHistory from '@/components/ScoreHistory';
+import StreakCounter from '@/components/StreakCounter';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import Image from 'next/image';
@@ -82,6 +83,13 @@ export default function Home() {
                 Wocab
               </h1>
             </div>
+
+            {/* Streak Counter */}
+            {user && (
+              <div className="mb-8 flex justify-center">
+                <StreakCounter user={user} />
+              </div>
+            )}
             
             {/* Greeting Section with Dog Avatar */}
             {greetingImage && (
