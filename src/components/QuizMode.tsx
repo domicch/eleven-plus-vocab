@@ -291,7 +291,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
           {/* Image Display */}
           {imageLoading && (
             <div className="mb-6">
-              <div className="w-64 h-48 mx-auto bg-gray-200 rounded-lg flex items-center justify-center">
+              <div className="w-full max-w-64 h-48 mx-auto bg-gray-200 rounded-lg flex items-center justify-center">
                 <div className="text-gray-500">Checking for image...</div>
               </div>
             </div>
@@ -299,7 +299,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
           
           {!imageLoading && hasImage && (
             <div className="mb-6">
-              <div className="relative w-64 h-48 mx-auto rounded-lg overflow-hidden shadow-md">
+              <div className="relative w-full max-w-64 h-48 mx-auto rounded-lg overflow-hidden shadow-md">
                 <Image
                   src={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/images/words/${currentQuestion.word.toLowerCase()}.jpg`}
                   alt={currentQuestion.word}
@@ -384,10 +384,10 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
 
       {/* Dale Reaction Overlay */}
       {showDaleReaction && daleReactionImage && (
-        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50">
-          <div className="flex items-center gap-6">
+        <div className="fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6 max-w-full">
             {/* Dale Image */}
-            <div className="w-64 h-64">
+            <div className="w-48 h-48 sm:w-64 sm:h-64 flex-shrink-0">
               <Image
                 src={daleReactionImage}
                 alt="Dale reaction"
@@ -397,13 +397,13 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
               />
             </div>
             
-            {/* Speech Bubble - To the right of Dale */}
-            <div className="relative bg-white border-2 border-gray-300 rounded-2xl shadow-lg p-6 max-w-xs">
-              <p className="text-xl font-bold text-gray-800 text-center">
+            {/* Speech Bubble */}
+            <div className="relative bg-white border-2 border-gray-300 rounded-2xl shadow-lg p-4 sm:p-6 max-w-xs w-full">
+              <p className="text-lg sm:text-xl font-bold text-gray-800 text-center">
                 {daleReactionMessage}
               </p>
-              {/* Speech bubble tail pointing left to Dale */}
-              <div className="absolute left-[-8px] top-1/2 transform -translate-y-1/2 w-0 h-0 border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-white"></div>
+              {/* Speech bubble tail - hidden on mobile, shown on desktop */}
+              <div className="hidden sm:block absolute left-[-8px] top-1/2 transform -translate-y-1/2 w-0 h-0 border-t-8 border-b-8 border-r-8 border-t-transparent border-b-transparent border-r-white"></div>
             </div>
           </div>
         </div>

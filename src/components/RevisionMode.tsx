@@ -133,21 +133,22 @@ export default function RevisionMode({ vocabulary }: RevisionModeProps) {
 
         {/* Image Display */}
         {imageLoading && (
-          <div className="mb-8">
-            <div className="w-80 h-60 bg-gray-200 rounded-lg flex items-center justify-center">
+          <div className="mb-8 flex justify-center">
+            <div className="w-full max-w-80 h-60 bg-gray-200 rounded-lg flex items-center justify-center">
               <div className="text-gray-500">Checking for image...</div>
             </div>
           </div>
         )}
         
         {!imageLoading && hasImage && (
-          <div className="mb-8">
-            <div className="relative w-80 h-60 rounded-lg overflow-hidden shadow-md">
+          <div className="mb-8 flex justify-center">
+            <div className="w-full max-w-80 rounded-lg overflow-hidden shadow-md">
               <Image
                 src={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/images/words/${currentWord.word.toLowerCase()}.jpg`}
                 alt={currentWord.word}
-                fill
-                className="object-cover"
+                width={320}
+                height={240}
+                className="w-full h-auto object-cover"
                 onError={() => {
                   // Handle image load error
                   console.log(`Image not found for: ${currentWord.word}`);
