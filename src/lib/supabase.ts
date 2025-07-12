@@ -10,6 +10,26 @@ export const supabase = typeof window !== 'undefined' &&
 export type Database = {
   public: {
     Tables: {
+      vocabulary: {
+        Row: {
+          id: number
+          word: string
+          definition: string
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          word: string
+          definition: string
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          word?: string
+          definition?: string
+          created_at?: string
+        }
+      }
       quiz_scores: {
         Row: {
           id: string
