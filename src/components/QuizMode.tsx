@@ -273,8 +273,8 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
         {/* Question */}
         <div className="text-center mb-8">
           <h3 className="text-xl text-gray-600 mb-4">What does this word mean?</h3>
-          <div className="flex items-center justify-center gap-4 mb-6">
-            <h1 className="text-5xl font-bold text-gray-800">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 mb-6 px-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 break-words text-center flex-1 min-w-0">
               {currentQuestion.word}
             </h1>
             <button

@@ -115,8 +115,8 @@ export default function RevisionMode({ vocabulary }: RevisionModeProps) {
       <div className="bg-white rounded-xl shadow-lg p-8 min-h-[500px] flex flex-col justify-center items-center">
         {/* Word Display */}
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-4 mb-4">
-            <h1 className="text-5xl font-bold text-gray-800">
+          <div className="flex items-center justify-center gap-2 sm:gap-4 mb-4 px-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 break-words text-center flex-1 min-w-0">
               {currentWord.word}
             </h1>
             <button
@@ -180,26 +180,25 @@ export default function RevisionMode({ vocabulary }: RevisionModeProps) {
       </div>
 
       {/* Navigation Controls */}
-      <div className="flex justify-between items-center mt-6">
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-4 mt-6">
         <button
           onClick={prevCard}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+          className="bg-gray-500 hover:bg-gray-600 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition-colors w-full sm:w-auto"
         >
           ← Previous
         </button>
 
-        <div className="flex space-x-4">
-          <button
-            onClick={toggleDefinition}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
-          >
-            {showDefinition ? 'Hide Definition' : 'Show Definition'}
-          </button>
-        </div>
+        <button
+          onClick={toggleDefinition}
+          className="bg-green-600 hover:bg-green-700 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition-colors w-full sm:w-auto order-last sm:order-none"
+        >
+          <span className="sm:hidden">{showDefinition ? 'Hide' : 'Show'}</span>
+          <span className="hidden sm:inline">{showDefinition ? 'Hide Definition' : 'Show Definition'}</span>
+        </button>
 
         <button
           onClick={nextCard}
-          className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+          className="bg-gray-500 hover:bg-gray-600 text-white px-4 sm:px-6 py-3 rounded-lg font-semibold transition-colors w-full sm:w-auto"
         >
           Next →
         </button>
