@@ -178,7 +178,7 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       {/* Header with Navigation */}
       {mode !== 'menu' && (
-        <header className="bg-white shadow-sm">
+        <header className="sticky top-0 z-50 bg-white shadow-sm">
           <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <button
               onClick={() => setMode('menu')}
