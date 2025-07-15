@@ -32,6 +32,16 @@ BEGIN
     RETURN jsonb_build_object('error', 'Question count cannot exceed 50');
   END IF;
   
+  -- Check if user already has an active quiz
+  SELECT COUNT(*) FROM quiz 
+  WHERE quiz.user_id = generatequiz.user_id 
+    AND status = 'active' 
+  INTO i;
+  
+  IF i > 0 THEN
+    RETURN jsonb_build_object('error', 'User already has an active quiz');
+  END IF;
+  
   -- Check if we have enough vocabulary words
   SELECT COUNT(*) FROM vocabulary INTO i;
   IF i < question_count THEN

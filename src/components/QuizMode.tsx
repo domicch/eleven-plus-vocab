@@ -1,37 +1,63 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { VocabularyWord, QuizQuestion } from '@/types/vocabulary';
-import { generateQuizQuestion, shuffleArray, checkImageExists, getRandomDaleImage, speakWord } from '@/utils/vocabulary';
-import { supabase } from '@/lib/supabase';
+import { useState, useEffect, useRef } from 'react';
+import { supabase, QuizQuestion } from '@/lib/supabase';
+import { checkImageExists, getRandomDaleImage, speakWord } from '@/utils/vocabulary';
 import { markTodayCompleted, checkTodayCompletion } from '@/utils/streaks';
 import type { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
+interface QuizSession {
+  id: string;
+  user_id: string;
+  status: 'active' | 'completed' | 'abandoned';
+  total_questions: number;
+  questions: QuizQuestion[];
+  created_at: string;
+  completed_at: string | null;
+  score: number | null;
+}
+
 interface QuizModeProps {
-  vocabulary: VocabularyWord[];
+  vocabulary: unknown[]; // Keep for compatibility but won't be used
 }
 
 export default function QuizMode({ vocabulary }: QuizModeProps) {
-  const [questions, setQuestions] = useState<QuizQuestion[]>([]);
+  // Suppress unused parameter warning - keeping for compatibility
+  void vocabulary;
+  
+  // Quiz session state
+  const [quizSession, setQuizSession] = useState<QuizSession | null>(null);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [score, setScore] = useState(0);
   const [quizComplete, setQuizComplete] = useState(false);
+  
+  // UI state
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showResumePrompt, setShowResumePrompt] = useState(false);
+  const [pendingActiveQuizzes, setPendingActiveQuizzes] = useState<QuizSession[]>([]);
   const [hasImage, setHasImage] = useState(false);
   const [imageLoading, setImageLoading] = useState(false);
   const [showDaleReaction, setShowDaleReaction] = useState(false);
   const [daleReactionImage, setDaleReactionImage] = useState<string>('');
   const [daleReactionMessage, setDaleReactionMessage] = useState<string>('');
+  
+  // User and streak state
   const [user, setUser] = useState<User | null>(null);
   const [todayCompleted, setTodayCompleted] = useState(false);
   const [earnedStar, setEarnedStar] = useState(false);
+  
+  // Ref to prevent duplicate requests
+  const loadingRef = useRef(false);
 
+  // Sound effect functions
   const playCorrectSound = () => {
     try {
       const audio = new Audio(`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/sound/correct.mp3`);
-      audio.volume = 0.5; // Set volume to 50% to not be too loud
+      audio.volume = 0.5;
       audio.play().catch(error => {
         console.warn('Could not play correct sound:', error);
       });
@@ -43,7 +69,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   const playWrongSound = () => {
     try {
       const audio = new Audio(`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/sound/wrong.mp3`);
-      audio.volume = 0.5; // Set volume to 50% to not be too loud
+      audio.volume = 0.5;
       audio.play().catch(error => {
         console.warn('Could not play wrong sound:', error);
       });
@@ -51,12 +77,6 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
       console.warn('Error creating audio element:', error);
     }
   };
-
-  useEffect(() => {
-    if (vocabulary.length > 0) {
-      generateQuiz();
-    }
-  }, [vocabulary]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Get current user
   useEffect(() => {
@@ -82,10 +102,17 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
     }
   }, [user]);
 
+  // Load or create quiz when user is available
+  useEffect(() => {
+    if (user && !quizSession && !loadingRef.current) {
+      loadOrCreateQuiz();
+    }
+  }, [user, quizSession]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Check for image when question changes
   useEffect(() => {
-    if (questions.length > 0 && questions[currentQuestionIndex]) {
-      const currentQuestion = questions[currentQuestionIndex];
+    if (quizSession && quizSession.questions.length > 0 && currentQuestionIndex < quizSession.questions.length) {
+      const currentQuestion = quizSession.questions[currentQuestionIndex];
       setImageLoading(true);
       setHasImage(false);
       
@@ -94,19 +121,138 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
         setImageLoading(false);
       });
     }
-  }, [questions, currentQuestionIndex]);
+  }, [quizSession, currentQuestionIndex]);
 
-  const generateQuiz = () => {
-    const shuffledVocab = shuffleArray(vocabulary).slice(0, 10); // 10 questions
-    const newQuestions = shuffledVocab.map(word => 
-      generateQuizQuestion(word, vocabulary)
-    );
-    setQuestions(newQuestions);
-    setCurrentQuestionIndex(0);
-    setScore(0);
-    setQuizComplete(false);
-    setSelectedAnswer(null);
-    setShowResult(false);
+  const loadOrCreateQuiz = async () => {
+    if (!supabase || !user || loadingRef.current) return;
+
+    loadingRef.current = true;
+    setLoading(true);
+    setError(null);
+
+    try {
+      // First, check if user has an active quiz
+      const { data: activeQuizzes, error: activeQuizError } = await supabase
+        .from('quiz')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'active');
+
+      if (activeQuizError) {
+        throw new Error(`Error loading active quiz: ${activeQuizError.message}`);
+      }
+
+      if (activeQuizzes && activeQuizzes.length > 0) {
+        // Show resume prompt to user
+        setPendingActiveQuizzes(activeQuizzes);
+        setShowResumePrompt(true);
+        return; // Exit early, user will decide via prompt
+      }
+
+      // No active quizzes, create new one
+      await createNewQuiz();
+    } catch (err) {
+      console.error('Quiz loading error:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load quiz');
+    } finally {
+      setLoading(false);
+      loadingRef.current = false;
+    }
+  };
+
+  const createNewQuiz = async () => {
+    if (!supabase) throw new Error('Supabase client not available');
+    if (!user) throw new Error('User not authenticated');
+    
+    const { data: newQuizResult, error: createError } = await supabase.rpc('generatequiz', {
+      user_id: user.id,
+      question_count: 10
+    });
+
+    if (createError) {
+      throw new Error(`Error creating quiz: ${createError.message}`);
+    }
+
+    if (newQuizResult.error) {
+      throw new Error(`Quiz generation failed: ${newQuizResult.error}`);
+    }
+
+    // Load the newly created quiz
+    const { data: newQuiz, error: loadError } = await supabase
+      .from('quiz')
+      .select('*')
+      .eq('id', newQuizResult.quiz_id)
+      .single();
+
+    if (loadError) {
+      throw new Error(`Error loading new quiz: ${loadError.message}`);
+    }
+
+    setQuizSession(newQuiz);
+  };
+
+  const handleResumeQuiz = async () => {
+    if (!supabase || pendingActiveQuizzes.length === 0) return;
+
+    try {
+      setLoading(true);
+      
+      // Resume the first quiz and abandon the rest
+      const quizToResume = pendingActiveQuizzes[0];
+      const quizzesToAbandon = pendingActiveQuizzes.slice(1);
+
+      if (quizzesToAbandon.length > 0) {
+        const abandonIds = quizzesToAbandon.map(quiz => quiz.id);
+        await supabase
+          .from('quiz')
+          .delete()
+          .in('id', abandonIds);
+      }
+      setQuizSession(quizToResume);
+      
+      // Reset UI state for quiz start
+      setCurrentQuestionIndex(0);
+      setScore(0);
+      setSelectedAnswer(null);
+      setShowResult(false);
+      setQuizComplete(false);
+      
+    } catch (err) {
+      console.error('Error resuming quiz:', err);
+      setError(err instanceof Error ? err.message : 'Failed to resume quiz');
+    } finally {
+      setShowResumePrompt(false);
+      setPendingActiveQuizzes([]);
+      setLoading(false);
+      loadingRef.current = false;
+    }
+  };
+
+  const handleStartNewQuiz = async () => {
+    if (!supabase || pendingActiveQuizzes.length === 0) return;
+
+    try {
+      setLoading(true);
+      
+      // Delete all active quizzes
+      const quizIds = pendingActiveQuizzes.map(quiz => quiz.id);
+      await supabase
+        .from('quiz')
+        .delete()
+        .in('id', quizIds);
+
+      // Create new quiz
+      await createNewQuiz();
+      
+    } catch (err) {
+      console.error('Error starting new quiz:', err);
+      setError(err instanceof Error ? err.message : 'Failed to start new quiz');
+    } finally {
+      setShowResumePrompt(false);
+      setPendingActiveQuizzes([]);
+      setLoading(false);
+      loadingRef.current = false;
+    }
   };
 
   const showDaleReactionFunc = async (isCorrect: boolean) => {
@@ -119,7 +265,6 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
       setDaleReactionMessage(message);
       setShowDaleReaction(true);
       
-      // Hide Dale after 2 seconds
       setTimeout(() => {
         setShowDaleReaction(false);
       }, 2000);
@@ -134,31 +279,28 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   };
 
   const submitAnswer = async () => {
-    if (selectedAnswer === null) return;
+    if (selectedAnswer === null || !quizSession) return;
     
     setShowResult(true);
     
-    const isCorrect = selectedAnswer === questions[currentQuestionIndex].correctIndex;
+    const currentQuestion = quizSession.questions[currentQuestionIndex];
+    const isCorrect = selectedAnswer === currentQuestion.correct_index;
+    
     if (isCorrect) {
       setScore(score + 1);
-      // Play correct sound effect
       playCorrectSound();
     } else {
-      // Play wrong sound effect
       playWrongSound();
     }
     
-    // Show Dale's reaction
     await showDaleReactionFunc(isCorrect);
   };
 
   const nextQuestion = () => {
-    if (currentQuestionIndex + 1 >= questions.length) {
-      setQuizComplete(true);
-      // Calculate final score (including current answer if correct)
-      const finalScore = score + (selectedAnswer === questions[currentQuestionIndex].correctIndex ? 1 : 0);
-      // Save the quiz score for logged-in users
-      saveQuizScore(finalScore, questions.length);
+    if (!quizSession) return;
+
+    if (currentQuestionIndex + 1 >= quizSession.questions.length) {
+      completeQuiz();
     } else {
       setCurrentQuestionIndex(currentQuestionIndex + 1);
       setSelectedAnswer(null);
@@ -166,87 +308,219 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
     }
   };
 
-  const saveQuizScore = async (finalScore: number, totalQuestions: number) => {
-    if (!supabase || !user) return;
+  const completeQuiz = async () => {
+    if (!supabase || !user || !quizSession) return;
 
+    const finalScore = score + (selectedAnswer === quizSession.questions[currentQuestionIndex].correct_index ? 1 : 0);
+    
     try {
-      const { error } = await supabase
+      // Update quiz status to completed
+      const { error: updateError } = await supabase
+        .from('quiz')
+        .update({
+          status: 'completed',
+          score: finalScore,
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', quizSession.id);
+
+      if (updateError) {
+        console.error('Error updating quiz status:', updateError);
+      }
+
+      // Save to quiz_scores table for backward compatibility
+      const { error: scoreError } = await supabase
         .from('quiz_scores')
         .insert({
           user_id: user.id,
           score: finalScore,
-          total_questions: totalQuestions,
+          total_questions: quizSession.questions.length,
         });
 
-      if (error) {
-        console.error('Error saving quiz score:', error);
-      } else {
-        console.log('Quiz score saved successfully!');
+      if (scoreError) {
+        console.error('Error saving quiz score:', scoreError);
       }
 
       // Check if user passed quiz (50% or higher) and mark today as completed
-      const percentage = (finalScore / totalQuestions) * 100;
+      const percentage = (finalScore / quizSession.questions.length) * 100;
       if (percentage >= 50 && !todayCompleted) {
         await markTodayCompleted(user.id);
         setTodayCompleted(true);
         setEarnedStar(true);
       }
+
+      setQuizComplete(true);
     } catch (error) {
-      console.error('Error saving quiz score:', error);
+      console.error('Error completing quiz:', error);
+      setQuizComplete(true); // Still show completion UI even if saving failed
     }
   };
 
-  const restartQuiz = () => {
-    generateQuiz();
+  const restartQuiz = async () => {
+    // Delete current quiz if it exists
+    if (quizSession && supabase) {
+      await supabase
+        .from('quiz')
+        .delete()
+        .eq('id', quizSession.id);
+    }
+    
+    setQuizSession(null);
+    setCurrentQuestionIndex(0);
+    setSelectedAnswer(null);
+    setShowResult(false);
+    setScore(0);
+    setQuizComplete(false);
+    setEarnedStar(false);
+    setError(null);
+    loadingRef.current = false;
+    
+    // This will trigger useEffect to create a new quiz
+    if (user) {
+      loadOrCreateQuiz();
+    }
   };
 
-  if (questions.length === 0) {
-    return <div className="text-center text-gray-500">Loading quiz...</div>;
+  // Loading state
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center">
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading quiz...</p>
+        </div>
+      </div>
+    );
   }
 
+  // Error state
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center">
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <div className="text-red-500 text-xl mb-4">⚠️</div>
+          <h2 className="text-xl font-bold text-red-600 mb-4">Quiz Error</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={restartQuiz}
+            className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Not authenticated
+  if (!user) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center">
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <h2 className="text-xl font-bold text-gray-800 mb-4">Sign In Required</h2>
+          <p className="text-gray-600">Please sign in to take quizzes and track your progress.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Resume quiz prompt
+  if (showResumePrompt) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center">
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <h2 className="text-2xl font-bold text-blue-600 mb-4">Resume Quiz?</h2>
+          <div className="text-4xl mb-4">🤔</div>
+          <p className="text-lg text-gray-700 mb-2">
+            You have {pendingActiveQuizzes.length} unfinished quiz{pendingActiveQuizzes.length > 1 ? 'es' : ''}.
+          </p>
+          <p className="text-gray-600 mb-8">
+            Would you like to resume your quiz or start a new one?
+          </p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <button
+              onClick={handleResumeQuiz}
+              disabled={loading}
+              className={`px-8 py-3 rounded-lg font-semibold transition-colors ${
+                loading
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-green-600 hover:bg-green-700 text-white'
+              }`}
+            >
+              {loading ? 'Loading...' : 'Resume Quiz'}
+            </button>
+            <button
+              onClick={handleStartNewQuiz}
+              disabled={loading}
+              className={`px-8 py-3 rounded-lg font-semibold transition-colors ${
+                loading
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+              }`}
+            >
+              {loading ? 'Loading...' : 'Start New Quiz'}
+            </button>
+          </div>
+          {pendingActiveQuizzes.length > 1 && (
+            <p className="text-sm text-gray-500 mt-4">
+              Note: If you resume, the other quizzes will be deleted.
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // No quiz session
+  if (!quizSession) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center">
+        <div className="bg-white rounded-xl shadow-lg p-8">
+          <p className="text-gray-600">Loading quiz session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Quiz completion state
   if (quizComplete) {
+    const finalScore = score + (selectedAnswer === quizSession.questions[currentQuestionIndex]?.correct_index ? 1 : 0);
+    
     return (
       <div className="max-w-4xl mx-auto p-6">
         <div className="bg-white rounded-xl shadow-lg p-8 text-center">
           <h2 className="text-4xl font-bold text-green-600 mb-4">Quiz Complete!</h2>
           <div className="text-6xl mb-4">🎉</div>
           <p className="text-2xl text-gray-700 mb-6">
-            Your Score: <span className="font-bold text-blue-600">{score}/{questions.length}</span>
+            Your Score: <span className="font-bold text-blue-600">{finalScore}/{quizSession.questions.length}</span>
           </p>
           <p className="text-lg text-gray-600 mb-4">
-            {score >= questions.length * 0.8 
+            {finalScore >= quizSession.questions.length * 0.8 
               ? "Excellent work! You have a great understanding of these words!"
-              : score >= questions.length * 0.5
+              : finalScore >= quizSession.questions.length * 0.5
               ? "Good job! Keep practicing to improve your vocabulary."
               : "Keep studying! Practice makes perfect."}
           </p>
-          {user && (
-            <div className="mb-8">
-              <p className="text-sm text-green-600 mb-2">
-                ✓ Your score has been saved to your profile!
-              </p>
-              {earnedStar && (
-                <p className="text-lg text-yellow-600 font-semibold">
-                  ⭐ You earned your daily star! Keep up the streak!
-                </p>
-              )}
-              {!earnedStar && score >= questions.length * 0.5 && todayCompleted && (
-                <p className="text-sm text-blue-600">
-                  ⭐ You already earned your daily star today!
-                </p>
-              )}
-              {!earnedStar && score < questions.length * 0.5 && (
-                <p className="text-sm text-orange-600">
-                  📚 Score 50% or higher to earn your daily star!
-                </p>
-              )}
-            </div>
-          )}
-          {!user && (
-            <p className="text-sm text-gray-500 mb-8">
-              💡 Sign in to save your scores and track your daily streak!
+          <div className="mb-8">
+            <p className="text-sm text-green-600 mb-2">
+              ✓ Your score has been saved to your profile!
             </p>
-          )}
+            {earnedStar && (
+              <p className="text-lg text-yellow-600 font-semibold">
+                ⭐ You earned your daily star! Keep up the streak!
+              </p>
+            )}
+            {!earnedStar && finalScore >= quizSession.questions.length * 0.5 && todayCompleted && (
+              <p className="text-sm text-blue-600">
+                ⭐ You already earned your daily star today!
+              </p>
+            )}
+            {!earnedStar && finalScore < quizSession.questions.length * 0.5 && (
+              <p className="text-sm text-orange-600">
+                📚 Score 50% or higher to earn your daily star!
+              </p>
+            )}
+          </div>
           <button
             onClick={restartQuiz}
             className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
@@ -258,14 +532,15 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
     );
   }
 
-  const currentQuestion = questions[currentQuestionIndex];
+  // Active quiz state
+  const currentQuestion = quizSession.questions[currentQuestionIndex];
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6 text-center">
         <h2 className="text-3xl font-bold text-purple-600 mb-2">Quiz Mode</h2>
         <p className="text-gray-600">
-          Question {currentQuestionIndex + 1} of {questions.length} | Score: {score}
+          Question {currentQuestionIndex + 1} of {quizSession.questions.length} | Score: {score}
         </p>
       </div>
 
@@ -320,7 +595,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
             let buttonClass = "w-full p-4 text-left rounded-lg border-2 transition-colors ";
             
             if (showResult) {
-              if (index === currentQuestion.correctIndex) {
+              if (index === currentQuestion.correct_index) {
                 buttonClass += "border-green-500 bg-green-100 text-green-800";
               } else if (index === selectedAnswer) {
                 buttonClass += "border-red-500 bg-red-100 text-red-800";
@@ -368,7 +643,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
               onClick={nextQuestion}
               className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
             >
-              {currentQuestionIndex + 1 >= questions.length ? 'Finish Quiz' : 'Next Question'}
+              {currentQuestionIndex + 1 >= quizSession.questions.length ? 'Finish Quiz' : 'Next Question'}
             </button>
           )}
         </div>
@@ -378,7 +653,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
       <div className="mt-6 bg-gray-200 rounded-full h-2">
         <div
           className="bg-purple-600 h-2 rounded-full transition-all duration-300"
-          style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+          style={{ width: `${((currentQuestionIndex + 1) / quizSession.questions.length) * 100}%` }}
         ></div>
       </div>
 

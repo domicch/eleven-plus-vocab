@@ -159,6 +159,14 @@ describe('generateQuiz Database Function and Quiz Table', () => {
   });
 
   describe('generateQuiz Function', () => {
+    beforeEach(async () => {
+      // Clean up any existing quizzes for test user before each test
+      await supabase
+        .from('quiz')
+        .delete()
+        .eq('user_id', testUser.id);
+    });
+
     test('should exist and be callable', async () => {
       const { data, error } = await supabase.rpc('generatequiz', {
         user_id: testUser.id,
@@ -381,6 +389,37 @@ describe('generateQuiz Database Function and Quiz Table', () => {
       // Should return error for null parameters
       expect(error || (data && data.error)).toBeTruthy();
     });
+
+    test('should prevent duplicate active quizzes', async () => {
+      // Create first quiz
+      const { data: firstQuiz, error: firstError } = await supabase.rpc('generatequiz', {
+        user_id: testUser.id,
+        question_count: 5
+      });
+
+      expect(firstError).toBeNull();
+      expect(firstQuiz).toHaveProperty('quiz_id');
+
+      // Try to create second quiz - should fail
+      const { data: secondQuiz, error: secondError } = await supabase.rpc('generatequiz', {
+        user_id: testUser.id,
+        question_count: 5
+      });
+
+      // Should return error or error in data
+      if (secondError) {
+        expect(secondError).toBeDefined();
+      } else {
+        expect(secondQuiz).toHaveProperty('error');
+        expect(secondQuiz.error).toMatch(/already.*active.*quiz/i);
+      }
+
+      // Clean up first quiz
+      await supabase
+        .from('quiz')
+        .delete()
+        .eq('id', firstQuiz.quiz_id);
+    });
   });
 
   describe('Performance', () => {
@@ -410,6 +449,14 @@ describe('generateQuiz Database Function and Quiz Table', () => {
   });
 
   describe('Integration with Existing Functions', () => {
+    beforeEach(async () => {
+      // Clean up any existing quizzes for test user before each test
+      await supabase
+        .from('quiz')
+        .delete()
+        .eq('user_id', testUser.id);
+    });
+
     test('should use generatequizquestion function internally', async () => {
       const { data, error } = await supabase.rpc('generatequiz', {
         user_id: testUser.id,
