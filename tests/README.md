@@ -34,17 +34,22 @@ npm test
 # Run only database tests
 npm run test:db
 
+# Run specific test suites
+npm run test:quiz-question  # generatequizquestion function tests
+npm run test:quiz          # generatequiz function and quiz table tests
+
 # Run tests in watch mode
 npm run test:watch
 
 # Run specific test file
 npx jest tests/database/generateQuizQuestion.test.js
+npx jest tests/database/generateQuiz.test.js
 ```
 
 ## Test Structure
 
 ### `generateQuizQuestion.test.js`
-Tests for the `generateQuizQuestion(word_id)` database function:
+Tests for the `generatequizquestion(word_id)` database function:
 
 - **Function Existence**: Verifies function exists and is callable
 - **Structure Validation**: Checks return format (word, correctAnswer, options, correctIndex)
@@ -54,6 +59,18 @@ Tests for the `generateQuizQuestion(word_id)` database function:
 - **Randomization**: Tests option shuffling and wrong answer variation
 - **Error Handling**: Tests invalid inputs (null, non-existent IDs)
 - **Performance**: Ensures reasonable response times
+
+### `generateQuiz.test.js`  
+Tests for the `generatequiz(user_id, question_count)` database function and `quiz` table:
+
+- **Table Structure**: Validates quiz table schema and RLS policies
+- **Function Existence**: Verifies generatequiz function exists and is callable
+- **Quiz Generation**: Tests creating complete quiz sessions with multiple questions
+- **Question Structure**: Validates each question has correct format from generatequizquestion
+- **Uniqueness**: Ensures no duplicate words in same quiz
+- **Error Handling**: Tests invalid inputs (null, invalid counts, wrong user IDs)
+- **Integration**: Verifies generatequiz uses generatequizquestion internally
+- **Performance**: Ensures quiz generation completes within reasonable time
 
 ## Test-Driven Development Flow
 

@@ -30,6 +30,38 @@ export type Database = {
           created_at?: string
         }
       }
+      quiz: {
+        Row: {
+          id: string
+          user_id: string
+          status: 'active' | 'completed' | 'abandoned'
+          total_questions: number
+          questions: QuizQuestion[]
+          created_at: string
+          completed_at: string | null
+          score: number | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          status?: 'active' | 'completed' | 'abandoned'
+          total_questions?: number
+          questions: QuizQuestion[]
+          created_at?: string
+          completed_at?: string | null
+          score?: number | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          status?: 'active' | 'completed' | 'abandoned'
+          total_questions?: number
+          questions?: QuizQuestion[]
+          created_at?: string
+          completed_at?: string | null
+          score?: number | null
+        }
+      }
       quiz_scores: {
         Row: {
           id: string
@@ -81,4 +113,13 @@ export type Database = {
       }
     }
   }
+}
+
+// Quiz question structure for the questions JSONB field
+export type QuizQuestion = {
+  word_id: number
+  word: string
+  correct_answer: string
+  options: string[]
+  correct_index: number
 }

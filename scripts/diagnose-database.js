@@ -102,8 +102,35 @@ async function diagnoseDatabaseSetup() {
     console.error('❌ Error checking generatequizquestion function:', err.message);
   }
 
-  // Check 4: Other required tables
-  console.log('4️⃣ Checking other tables...');
+  // Check 4: Does generatequiz function exist?
+  console.log('4️⃣ Checking generatequiz function...');
+  try {
+    const { data, error } = await supabase.rpc('generatequiz', { 
+      user_id: '00000000-0000-0000-0000-000000000000',
+      question_count: 5 
+    });
+    
+    if (error) {
+      if (error.message.includes('function') && error.message.includes('does not exist')) {
+        console.log('❌ generatequiz function does not exist');
+        console.log('   👉 Run: scripts/sql/create_generateQuiz_function.sql in Supabase SQL Editor\n');
+      } else if (error.message.includes('Insufficient vocabulary data')) {
+        console.log('✅ generatequiz function exists (but no vocabulary data)');
+      } else {
+        console.log('❌ generatequiz function error:', error.message);
+      }
+    } else {
+      console.log('✅ generatequiz function exists and working');
+      if (data) {
+        console.log(`   📝 Sample result: quiz_id="${data.quiz_id}"\n`);
+      }
+    }
+  } catch (err) {
+    console.error('❌ Error checking generatequiz function:', err.message);
+  }
+
+  // Check 5: Other required tables
+  console.log('5️⃣ Checking other tables...');
   
   const tables = ['quiz_scores', 'daily_streaks'];
   for (const table of tables) {
