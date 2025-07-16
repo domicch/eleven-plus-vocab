@@ -16,6 +16,14 @@ interface QuizSession {
   created_at: string;
   completed_at: string | null;
   score: number | null;
+  current_question_index?: number;
+  current_score?: number;
+  answers_submitted?: Array<{
+    question_index: number;
+    selected_answer_index: number;
+    is_correct: boolean;
+    submitted_at: string;
+  }>;
 }
 
 interface QuizModeProps {
@@ -210,9 +218,9 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
       }
       setQuizSession(quizToResume);
       
-      // Reset UI state for quiz start
-      setCurrentQuestionIndex(0);
-      setScore(0);
+      // Reset UI state for resume (get current progress from server)
+      setCurrentQuestionIndex(quizToResume.current_question_index || 0);
+      setScore(quizToResume.current_score || 0);
       setSelectedAnswer(null);
       setShowResult(false);
       setQuizComplete(false);
@@ -279,82 +287,76 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   };
 
   const submitAnswer = async () => {
-    if (selectedAnswer === null || !quizSession) return;
+    if (selectedAnswer === null || !quizSession || !supabase) return;
     
     setShowResult(true);
     
-    const currentQuestion = quizSession.questions[currentQuestionIndex];
-    const isCorrect = selectedAnswer === currentQuestion.correct_index;
-    
-    if (isCorrect) {
-      setScore(score + 1);
-      playCorrectSound();
-    } else {
-      playWrongSound();
+    try {
+      // Submit answer to secure server-side function
+      const { data: result, error } = await supabase.rpc('submitquizanswer', {
+        quiz_id: quizSession.id,
+        question_index: currentQuestionIndex,
+        selected_answer_index: selectedAnswer
+      });
+
+      if (error) {
+        console.error('Error submitting answer:', error);
+        setError('Failed to submit answer. Please try again.');
+        setShowResult(false);
+        return;
+      }
+
+      if (result.error) {
+        console.error('Server error:', result.error);
+        setError(result.error);
+        setShowResult(false);
+        return;
+      }
+
+      // Update UI based on server response
+      const isCorrect = result.is_correct;
+      setScore(result.new_score);
+
+      if (isCorrect) {
+        playCorrectSound();
+      } else {
+        playWrongSound();
+      }
+
+      await showDaleReactionFunc(isCorrect);
+
+      // If quiz is completed, handle completion after Dale's reaction
+      if (result.quiz_completed) {
+        // Wait for Dale's reaction to finish (2 seconds) before showing completion
+        setTimeout(() => {
+          setQuizComplete(true);
+        }, 2000);
+        
+        // Check if user earned a star (can do this immediately)
+        const percentage = (result.final_score / result.total_questions) * 100;
+        if (percentage >= 50 && !todayCompleted) {
+          markTodayCompleted(user!.id).then(() => {
+            setTodayCompleted(true);
+            setEarnedStar(true);
+          });
+        }
+      }
+    } catch (err) {
+      console.error('Error submitting answer:', err);
+      setError('Failed to submit answer. Please try again.');
+      setShowResult(false);
     }
-    
-    await showDaleReactionFunc(isCorrect);
   };
 
   const nextQuestion = () => {
     if (!quizSession) return;
 
-    if (currentQuestionIndex + 1 >= quizSession.questions.length) {
-      completeQuiz();
-    } else {
-      setCurrentQuestionIndex(currentQuestionIndex + 1);
-      setSelectedAnswer(null);
-      setShowResult(false);
-    }
+    // Server-side function handles progression, so we just update UI
+    setCurrentQuestionIndex(currentQuestionIndex + 1);
+    setSelectedAnswer(null);
+    setShowResult(false);
   };
 
-  const completeQuiz = async () => {
-    if (!supabase || !user || !quizSession) return;
-
-    const finalScore = score + (selectedAnswer === quizSession.questions[currentQuestionIndex].correct_index ? 1 : 0);
-    
-    try {
-      // Update quiz status to completed
-      const { error: updateError } = await supabase
-        .from('quiz')
-        .update({
-          status: 'completed',
-          score: finalScore,
-          completed_at: new Date().toISOString()
-        })
-        .eq('id', quizSession.id);
-
-      if (updateError) {
-        console.error('Error updating quiz status:', updateError);
-      }
-
-      // Save to quiz_scores table for backward compatibility
-      const { error: scoreError } = await supabase
-        .from('quiz_scores')
-        .insert({
-          user_id: user.id,
-          score: finalScore,
-          total_questions: quizSession.questions.length,
-        });
-
-      if (scoreError) {
-        console.error('Error saving quiz score:', scoreError);
-      }
-
-      // Check if user passed quiz (50% or higher) and mark today as completed
-      const percentage = (finalScore / quizSession.questions.length) * 100;
-      if (percentage >= 50 && !todayCompleted) {
-        await markTodayCompleted(user.id);
-        setTodayCompleted(true);
-        setEarnedStar(true);
-      }
-
-      setQuizComplete(true);
-    } catch (error) {
-      console.error('Error completing quiz:', error);
-      setQuizComplete(true); // Still show completion UI even if saving failed
-    }
-  };
 
   const restartQuiz = async () => {
     // Delete current quiz if it exists
@@ -484,7 +486,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
 
   // Quiz completion state
   if (quizComplete) {
-    const finalScore = score + (selectedAnswer === quizSession.questions[currentQuestionIndex]?.correct_index ? 1 : 0);
+    const finalScore = score;
     
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -639,12 +641,14 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
               Submit Answer
             </button>
           ) : (
-            <button
-              onClick={nextQuestion}
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
-            >
-              {currentQuestionIndex + 1 >= quizSession.questions.length ? 'Finish Quiz' : 'Next Question'}
-            </button>
+            !quizComplete && (
+              <button
+                onClick={nextQuestion}
+                className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 rounded-lg font-semibold transition-colors"
+              >
+                Next Question
+              </button>
+            )
           )}
         </div>
       </div>
