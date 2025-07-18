@@ -8,6 +8,7 @@ import Image from 'next/image';
 export default function Auth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showClearCache, setShowClearCache] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -28,8 +29,18 @@ export default function Auth() {
       }
     );
 
-    return () => subscription.unsubscribe();
-  }, []);
+    // Show clear cache option after 10 seconds of loading
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        setShowClearCache(true);
+      }
+    }, 10000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeoutId);
+    };
+  }, [loading]);
 
   const signInWithGoogle = async () => {
     if (!supabase) return;
@@ -54,10 +65,61 @@ export default function Auth() {
     if (error) console.error('Error signing out:', error);
   };
 
+  const clearCacheAndRetry = () => {
+    try {
+      // Clear all Supabase-related localStorage entries
+      const keysToRemove = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && (key.includes('supabase') || key.includes('auth') || key.includes('sb-'))) {
+          keysToRemove.push(key);
+        }
+      }
+      
+      keysToRemove.forEach(key => localStorage.removeItem(key));
+      
+      // Also clear sessionStorage
+      const sessionKeysToRemove = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && (key.includes('supabase') || key.includes('auth') || key.includes('sb-'))) {
+          sessionKeysToRemove.push(key);
+        }
+      }
+      
+      sessionKeysToRemove.forEach(key => sessionStorage.removeItem(key));
+      
+      console.log('Cleared cache, refreshing page...');
+      
+      // Refresh the page to restart authentication
+      window.location.reload();
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+      // Fallback: just refresh the page
+      window.location.reload();
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-4">
-        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+      <div className="text-center p-4">
+        <div className="flex items-center justify-center mb-4">
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+          <span className="ml-2 text-gray-600">Loading...</span>
+        </div>
+        {showClearCache && (
+          <div className="mt-4">
+            <p className="text-sm text-gray-500 mb-3">
+              Authentication is taking longer than expected
+            </p>
+            <button
+              onClick={clearCacheAndRetry}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium transition-colors text-sm"
+            >
+              Clear Cache & Retry
+            </button>
+          </div>
+        )}
       </div>
     );
   }
