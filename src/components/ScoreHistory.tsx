@@ -13,9 +13,10 @@ interface QuizScore {
 
 interface ScoreHistoryProps {
   user: User | null;
+  category: '11plus' | 'music';
 }
 
-export default function ScoreHistory({ user }: ScoreHistoryProps) {
+export default function ScoreHistory({ user, category }: ScoreHistoryProps) {
   const [scores, setScores] = useState<QuizScore[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -23,8 +24,9 @@ export default function ScoreHistory({ user }: ScoreHistoryProps) {
     if (!supabase || !user) return;
 
     try {
+      const tableName = category === '11plus' ? 'quiz_scores' : 'music_quiz_scores';
       const { data, error } = await supabase
-        .from('quiz_scores')
+        .from(tableName)
         .select('id, score, total_questions, completed_at')
         .eq('user_id', user.id)
         .order('completed_at', { ascending: false })
@@ -40,7 +42,7 @@ export default function ScoreHistory({ user }: ScoreHistoryProps) {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, category]);
 
   useEffect(() => {
     if (!supabase || !user) {

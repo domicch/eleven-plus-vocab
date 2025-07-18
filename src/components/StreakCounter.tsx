@@ -6,9 +6,10 @@ import type { User } from '@supabase/supabase-js';
 
 interface StreakCounterProps {
   user: User | null;
+  category: '11plus' | 'music';
 }
 
-export default function StreakCounter({ user }: StreakCounterProps) {
+export default function StreakCounter({ user, category }: StreakCounterProps) {
   const [streakData, setStreakData] = useState({ currentStreak: 0, todayCompleted: false });
   const [loading, setLoading] = useState(true);
 
@@ -16,14 +17,14 @@ export default function StreakCounter({ user }: StreakCounterProps) {
     if (!user) return;
 
     try {
-      const data = await getStreakData(user.id);
+      const data = await getStreakData(user.id, category);
       setStreakData(data);
     } catch (error) {
       console.error('Error loading streak data:', error);
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, category]);
 
   useEffect(() => {
     if (user) {

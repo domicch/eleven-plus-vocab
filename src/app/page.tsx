@@ -118,7 +118,7 @@ export default function Home() {
             {/* Streak Counter */}
             {user && (
               <div className="mb-8 flex justify-center">
-                <StreakCounter user={user} />
+                <StreakCounter user={user} category={category || '11plus'} />
               </div>
             )}
             
@@ -164,7 +164,7 @@ export default function Home() {
             {/* Score History Section (only for logged in users) */}
             {user && (
               <div className="mb-8">
-                <ScoreHistory user={user} />
+                <ScoreHistory user={user} category={category || '11plus'} />
               </div>
             )}
 

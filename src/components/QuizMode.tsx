@@ -107,9 +107,9 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
   // Check today's completion status
   useEffect(() => {
     if (user) {
-      checkTodayCompletion(user.id).then(setTodayCompleted);
+      checkTodayCompletion(user.id, category).then(setTodayCompleted);
     }
-  }, [user]);
+  }, [user, category]);
 
   // Load or create quiz when user is available
   useEffect(() => {
@@ -342,7 +342,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
         // Check if user earned a star (can do this immediately)
         const percentage = (result.final_score / result.total_questions) * 100;
         if (percentage >= 50 && !todayCompleted) {
-          markTodayCompleted(user!.id).then(() => {
+          markTodayCompleted(user!.id, category).then(() => {
             setTodayCompleted(true);
             setEarnedStar(true);
           });

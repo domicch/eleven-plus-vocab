@@ -18,14 +18,15 @@ export function getTodayDate(): string {
 /**
  * Checks if the user has completed today's quiz (80% or higher)
  */
-export async function checkTodayCompletion(userId: string): Promise<boolean> {
+export async function checkTodayCompletion(userId: string, category: '11plus' | 'music' = '11plus'): Promise<boolean> {
   if (!supabase) return false;
 
   const today = getTodayDate();
+  const tableName = category === '11plus' ? 'daily_streaks' : 'music_daily_streaks';
   
   try {
     const { data, error } = await supabase
-      .from('daily_streaks')
+      .from(tableName)
       .select('completed')
       .eq('user_id', userId)
       .eq('date', today)
@@ -46,14 +47,15 @@ export async function checkTodayCompletion(userId: string): Promise<boolean> {
 /**
  * Marks today as completed (when user passes quiz with 80%+)
  */
-export async function markTodayCompleted(userId: string): Promise<void> {
+export async function markTodayCompleted(userId: string, category: '11plus' | 'music' = '11plus'): Promise<void> {
   if (!supabase) return;
 
   const today = getTodayDate();
+  const tableName = category === '11plus' ? 'daily_streaks' : 'music_daily_streaks';
   
   try {
     const { error } = await supabase
-      .from('daily_streaks')
+      .from(tableName)
       .upsert({
         user_id: userId,
         date: today,
@@ -73,12 +75,14 @@ export async function markTodayCompleted(userId: string): Promise<void> {
 /**
  * Calculates the current streak for a user
  */
-export async function calculateStreak(userId: string): Promise<number> {
+export async function calculateStreak(userId: string, category: '11plus' | 'music' = '11plus'): Promise<number> {
   if (!supabase) return 0;
+
+  const tableName = category === '11plus' ? 'daily_streaks' : 'music_daily_streaks';
 
   try {
     const { data, error } = await supabase
-      .from('daily_streaks')
+      .from(tableName)
       .select('date, completed')
       .eq('user_id', userId)
       .order('date', { ascending: false });
@@ -127,13 +131,13 @@ export async function calculateStreak(userId: string): Promise<number> {
 /**
  * Gets the user's streak data for display
  */
-export async function getStreakData(userId: string) {
+export async function getStreakData(userId: string, category: '11plus' | 'music' = '11plus') {
   if (!supabase) return { currentStreak: 0, todayCompleted: false };
 
   try {
     const [currentStreak, todayCompleted] = await Promise.all([
-      calculateStreak(userId),
-      checkTodayCompletion(userId)
+      calculateStreak(userId, category),
+      checkTodayCompletion(userId, category)
     ]);
 
     return {
