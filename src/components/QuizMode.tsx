@@ -28,9 +28,10 @@ interface QuizSession {
 
 interface QuizModeProps {
   vocabulary: unknown[]; // Keep for compatibility but won't be used
+  category: '11plus' | 'music';
 }
 
-export default function QuizMode({ vocabulary }: QuizModeProps) {
+export default function QuizMode({ vocabulary, category }: QuizModeProps) {
   // Suppress unused parameter warning - keeping for compatibility
   void vocabulary;
   
@@ -124,7 +125,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
       setImageLoading(true);
       setHasImage(false);
       
-      checkImageExists(currentQuestion.word).then((exists) => {
+      checkImageExists(currentQuestion.word, category).then((exists) => {
         setHasImage(exists);
         setImageLoading(false);
       });
@@ -140,8 +141,9 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
 
     try {
       // First, check if user has an active quiz
+      const tableName = category === '11plus' ? 'quiz' : 'music_quiz';
       const { data: activeQuizzes, error: activeQuizError } = await supabase
-        .from('quiz')
+        .from(tableName)
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active');
@@ -172,7 +174,8 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
     if (!supabase) throw new Error('Supabase client not available');
     if (!user) throw new Error('User not authenticated');
     
-    const { data: newQuizResult, error: createError } = await supabase.rpc('generatequiz', {
+    const functionName = category === '11plus' ? 'generatequiz' : 'music_generatequiz';
+    const { data: newQuizResult, error: createError } = await supabase.rpc(functionName, {
       user_id: user.id,
       question_count: 10
     });
@@ -186,8 +189,9 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
     }
 
     // Load the newly created quiz
+    const tableName = category === '11plus' ? 'quiz' : 'music_quiz';
     const { data: newQuiz, error: loadError } = await supabase
-      .from('quiz')
+      .from(tableName)
       .select('*')
       .eq('id', newQuizResult.quiz_id)
       .single();
@@ -211,8 +215,9 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
 
       if (quizzesToAbandon.length > 0) {
         const abandonIds = quizzesToAbandon.map(quiz => quiz.id);
+        const tableName = category === '11plus' ? 'quiz' : 'music_quiz';
         await supabase
-          .from('quiz')
+          .from(tableName)
           .delete()
           .in('id', abandonIds);
       }
@@ -244,8 +249,9 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
       
       // Delete all active quizzes
       const quizIds = pendingActiveQuizzes.map(quiz => quiz.id);
+      const tableName = category === '11plus' ? 'quiz' : 'music_quiz';
       await supabase
-        .from('quiz')
+        .from(tableName)
         .delete()
         .in('id', quizIds);
 
@@ -293,7 +299,8 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
     
     try {
       // Submit answer to secure server-side function
-      const { data: result, error } = await supabase.rpc('submitquizanswer', {
+      const functionName = category === '11plus' ? 'submitquizanswer' : 'music_submitquizanswer';
+      const { data: result, error } = await supabase.rpc(functionName, {
         quiz_id: quizSession.id,
         question_index: currentQuestionIndex,
         selected_answer_index: selectedAnswer
@@ -361,8 +368,9 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
   const restartQuiz = async () => {
     // Delete current quiz if it exists
     if (quizSession && supabase) {
+      const tableName = category === '11plus' ? 'quiz' : 'music_quiz';
       await supabase
-        .from('quiz')
+        .from(tableName)
         .delete()
         .eq('id', quizSession.id);
     }
@@ -578,7 +586,7 @@ export default function QuizMode({ vocabulary }: QuizModeProps) {
             <div className="mb-6">
               <div className="relative w-full max-w-64 h-48 mx-auto rounded-lg overflow-hidden shadow-md">
                 <Image
-                  src={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/images/words/${currentQuestion.word.toLowerCase()}.jpg`}
+                  src={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/images/words/${category}/${currentQuestion.word.toLowerCase()}.jpg`}
                   alt={currentQuestion.word}
                   fill
                   className="object-cover"

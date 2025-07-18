@@ -8,9 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "jest",
+    "test": "jest --runInBand",
     "test:watch": "jest --watch",
-    "test:db": "jest tests/database",
+    "test:db": "jest tests/database --runInBand",
     "test:quiz": "jest tests/database/generateQuiz.test.js",
     "test:quiz-question": "jest tests/database/generateQuizQuestion.test.js",
     "generate-greeting-images": "node scripts/generate-greeting-images.js"

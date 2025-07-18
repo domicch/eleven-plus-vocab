@@ -1,9 +1,10 @@
 import { VocabularyWord, QuizQuestion } from '@/types/vocabulary';
 
-export async function loadVocabulary(): Promise<VocabularyWord[]> {
+export async function loadVocabulary(category: '11plus' | 'music' = '11plus'): Promise<VocabularyWord[]> {
   try {
     const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
-    const response = await fetch(`${basePath}/vocabulary.csv`);
+    const csvFile = category === '11plus' ? 'vocabulary.csv' : 'vocabulary-music.csv';
+    const response = await fetch(`${basePath}/${csvFile}`);
     const csvText = await response.text();
     
     const lines = csvText.trim().split('\n');
@@ -56,10 +57,10 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-export async function checkImageExists(word: string): Promise<boolean> {
+export async function checkImageExists(word: string, category: '11plus' | 'music' = '11plus'): Promise<boolean> {
   try {
     const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
-    const response = await fetch(`${basePath}/images/words/${word.toLowerCase()}.jpg`, { method: 'HEAD' });
+    const response = await fetch(`${basePath}/images/words/${category}/${word.toLowerCase()}.jpg`, { method: 'HEAD' });
     return response.ok;
   } catch {
     return false;

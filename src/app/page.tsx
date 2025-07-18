@@ -8,14 +8,17 @@ import QuizMode from '@/components/QuizMode';
 import Auth from '@/components/Auth';
 import ScoreHistory from '@/components/ScoreHistory';
 import StreakCounter from '@/components/StreakCounter';
+import CategorySelection from '@/components/CategorySelection';
 import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
-type Mode = 'menu' | 'revision' | 'quiz';
+type Mode = 'category' | 'menu' | 'revision' | 'quiz';
+type Category = '11plus' | 'music';
 
 export default function Home() {
-  const [mode, setMode] = useState<Mode>('menu');
+  const [mode, setMode] = useState<Mode>('category');
+  const [category, setCategory] = useState<Category | null>(null);
   const [vocabulary, setVocabulary] = useState<VocabularyWord[]>([]);
   const [loading, setLoading] = useState(true);
   const [greetingImage, setGreetingImage] = useState<string>('');
@@ -24,8 +27,11 @@ export default function Home() {
   useEffect(() => {
     const loadWords = async () => {
       try {
-        const words = await loadVocabulary();
-        setVocabulary(words);
+        // Load vocabulary based on selected category
+        if (category) {
+          const words = await loadVocabulary(category);
+          setVocabulary(words);
+        }
         
         // Load random greeting image
         const randomGreeting = await getRandomGreetingImage();
@@ -38,7 +44,7 @@ export default function Home() {
     };
 
     loadWords();
-  }, []);
+  }, [category]);
 
   // Get current user
   useEffect(() => {
@@ -57,7 +63,17 @@ export default function Home() {
     return () => subscription.unsubscribe();
   }, []);
 
-  if (loading) {
+  const handleCategorySelect = (selectedCategory: Category) => {
+    setCategory(selectedCategory);
+    setMode('menu');
+  };
+
+  const handleBackToCategories = () => {
+    setCategory(null);
+    setMode('category');
+  };
+
+  if (loading && category) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
         <div className="text-center">
@@ -70,18 +86,33 @@ export default function Home() {
 
   const renderContent = () => {
     switch (mode) {
+      case 'category':
+        return <CategorySelection onCategorySelect={handleCategorySelect} greetingImage={greetingImage} />;
       case 'revision':
-        return <RevisionMode vocabulary={vocabulary} />;
+        return <RevisionMode vocabulary={vocabulary} category={category || '11plus'} />;
       case 'quiz':
-        return <QuizMode vocabulary={vocabulary} />;
+        return <QuizMode vocabulary={vocabulary} category={category || '11plus'} />;
       default:
         return (
           <div className="max-w-4xl mx-auto p-6 text-center">
-            {/* Title */}
+            {/* Title and Category Info */}
             <div className="mb-8">
               <h1 className="text-6xl font-bold text-gray-800 mb-4">
                 Wocab
               </h1>
+              <div className="flex items-center justify-center gap-4">
+                <div className={`px-4 py-2 rounded-full text-white font-semibold ${
+                  category === '11plus' ? 'bg-purple-600' : 'bg-blue-600'
+                }`}>
+                  {category === '11plus' ? '11+ Exam' : 'Music Theory'}
+                </div>
+                <button
+                  onClick={handleBackToCategories}
+                  className="px-4 py-2 rounded-full border-2 border-gray-300 text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors"
+                >
+                  Switch Category
+                </button>
+              </div>
             </div>
 
             {/* Streak Counter */}
@@ -118,7 +149,7 @@ export default function Home() {
             
             <div className="mb-8">
               <p className="text-xl text-gray-600 mb-2">
-                Master {vocabulary.length} essential words for your 11+ exam
+                Master {vocabulary.length} essential words for {category === '11plus' ? 'your 11+ exam' : 'music theory'}
               </p>
               <p className="text-lg text-gray-500">
                 Choose a learning mode to get started
@@ -177,7 +208,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       {/* Header with Navigation */}
-      {mode !== 'menu' && (
+      {mode !== 'menu' && mode !== 'category' && (
         <header className="sticky top-0 z-50 bg-white shadow-sm">
           <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
             <button
