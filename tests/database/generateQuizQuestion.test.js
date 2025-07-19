@@ -85,12 +85,14 @@ describe('generatequizquestion Database Function', () => {
       });
 
       expect(error).toBeNull();
+      expect(data).toHaveProperty('id');
       expect(data).toHaveProperty('word');
       expect(data).toHaveProperty('correctAnswer');
       expect(data).toHaveProperty('options');
       expect(data).toHaveProperty('correctIndex');
       
       // Check data types
+      expect(typeof data.id).toBe('string');
       expect(typeof data.word).toBe('string');
       expect(typeof data.correctAnswer).toBe('string');
       expect(Array.isArray(data.options)).toBe(true);
@@ -138,11 +140,12 @@ describe('generatequizquestion Database Function', () => {
   });
 
   describe('Correct Answer Validation', () => {
-    test('should return correct word for given ID', async () => {
+    test('should return correct word and ID for given ID', async () => {
       const { data } = await supabase.rpc('generatequizquestion', {
         word_id: testWordId
       });
 
+      expect(data.id).toBe(testWord.id.toString());
       expect(data.word).toBe(testWord.word);
       expect(data.correctAnswer).toBe(testWord.definition);
     });

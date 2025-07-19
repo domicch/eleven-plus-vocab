@@ -117,9 +117,9 @@ export type Database = {
 
 // Quiz question structure for the questions JSONB field
 export type QuizQuestion = {
-  word_id: number
+  id: string
   word: string
-  correct_answer: string
+  correctAnswer: string
   options: string[]
-  correct_index: number
+  correctIndex: number
 }

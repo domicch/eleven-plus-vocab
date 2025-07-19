@@ -1,98 +1,98 @@
-Word,Definition
-Adagio,slowly
-Andante,at an easy walking pace
-Moderato,at a moderate speed
-Allegro,lively and fast
-Accelerando (accel.),gradually becoming faster
-Allegretto,moderately fast
-Rallentando (rall.),gradually becoming slower
-Ritardando (rit. / ritard.),gradually becoming slower
-Ritenuto (riten. / rit.),immediately slower
-A tempo,return to former speed (‘in time’)
-Cantabile,in a singing style
-Da Capo al fine (D.C. al fine),from the beginning until ‘fine’
-Dal Segno (D.S.),from the sign
-Leggiero,lightly
-Molto,very
-Poco,a little
-Crescendo (cresc.),gradually becoming louder
-Decrescendo (decresc.),gradually becoming softer
-Diminuendo (dim.),gradually becoming softer
-Lento,slowly
-Legato,smooth and well connected
-Staccato,short and detached
-Diminuendo,Gradually becoming softer
-Mezzo forte,Moderately loud
-Forte,Loud
-Fortissimo,Very loud
-Mezzo piano,Moderately soft
-Piano,Soft
-Pianissimo,Very soft
-Slur,Play smoothly
-Tie,Play the first note and hold for value of both
-Pause or ‘fermata’,Hold for longer than written value
-Accent,Play strongly
-Repeat,Repeat the music between the dots
-Ottava sign,Play one octave higher or lower than written
-allargando,becoming broader
-andantino,literally ‘small andante’; slightly faster OR slower than ‘andante’ (walking pace)
-assai,very ( e.g. ‘allegro assai’ = very quick)
-con,with (e.g. ‘con grazia’ = with grace)
-con moto,with movement
-dolce,soft and sweet / sweetly
-espressivo (espress.),expressively
-forte-piano (fp),loud then immediately soft
-giocoso,playful / merry
-grave,very slow / solemn
-grazioso,gracefully
-largo,broadly / slowly
-larghetto,rather broadly (i.e. not as slow as ‘largo’)
-maestoso,majestically
-meno mosso,less speed (slower)
-molto,very (e.g. ‘molto espr.’ = very expressive)
-non troppo,not too much
-piu mosso,more speed (faster)
-presto,very fast
-senza,without
-sforzando (sfz or sf),a strong accent / forced
-simile (sim.),continue in the same way
-sostenuto,sustained
-vivace/vivo,lively and spirited
-tenuto,hold for full value of note / play note with a slight pressure
-mezzo-staccato (on one note),moderately short and detached
-mezzo-staccato (on more than one note),moderately short and detached
-strong accent,play strongly
-marcato,play strongly
-staccatissimo,extremely short and detached
-adagietto,rather slow (not as slow as ‘adagio’)
-ad libitum (ad lib.),play freely
-agitato,agitated
-alla breve,with a minim beat in 2/2 (usually faster than 4/4)
-amore/amoroso,love/loving
-animato,animated / lively
-ben marcato,well marked
-comodo,convenient/comfortable
-con anima,with feeling / with spirit
-con brio,with vigour
-con forza,with force
-deciso,with determination
-delicato,delicately
-energico,energetically
-largamente,broadly
-leggiero,lightly
-marziale,in a military style
-mesto,sad
-pesante,heavy
-prima/primo,first (e.g. ‘prima volta’ = first time)
-risoluto,bold / resolute
-ritmico,rhythmically
-rubato/tempo rubato,with freedom of tempo
-scherzando/scherzoso,playfully / jokingly
-seconda/secondo,second
-semplice,simple
-sempre,always
-stringendo,getting faster
-subito,suddenly
-tanto,so much
-tranquillo,calmly
-triste/tristamente,sadly/sorrowfully
+id,word,definition
+1,A tempo,return to former speed ("in time")
+2,Accelerando (accel.),gradually becoming faster
+3,Accent,Play strongly
+4,ad libitum (ad lib.),play freely
+5,Adagio,slowly
+6,adagietto,rather slow (not as slow as "adagio")
+7,agitato,agitated
+8,alla breve,with a minim beat in 2/2 (usually faster than 4/4)
+9,allargando,becoming broader
+10,Allegretto,moderately fast
+11,Allegro,lively and fast
+12,amore/amoroso,love/loving
+13,Andante,at an easy walking pace
+14,andantino,literally "small andante"; slightly faster OR slower than "andante" (walking pace)
+15,animato,animated / lively
+16,assai,very ( e.g. "allegro assai" = very quick)
+17,ben marcato,well marked
+18,Cantabile,in a singing style
+19,comodo,convenient/comfortable
+20,con,with (e.g. "con grazia" = with grace)
+21,con anima,with feeling / with spirit
+22,con brio,with vigour
+23,con forza,with force
+24,con moto,with movement
+25,Crescendo (cresc.),gradually becoming louder
+26,Da Capo al fine (D.C. al fine),from the beginning until "fine"
+27,Dal Segno (D.S.),from the sign
+28,deciso,with determination
+29,Decrescendo (decresc.),gradually becoming softer
+30,delicato,delicately
+31,Diminuendo,Gradually becoming softer
+32,Diminuendo (dim.),gradually becoming softer
+33,dolce,soft and sweet / sweetly
+34,energico,energetically
+35,espressivo (espress.),expressively
+36,Forte,Loud
+37,forte-piano (fp),loud then immediately soft
+38,Fortissimo,Very loud
+39,giocoso,playful / merry
+40,grave,very slow / solemn
+41,grazioso,gracefully
+42,largamente,broadly
+43,Largo,broadly / slowly
+44,larghetto,rather broadly (i.e. not as slow as "largo")
+45,Legato,smooth and well connected
+46,Leggiero,lightly
+47,leggiero,lightly
+48,Lento,slowly
+49,maestoso,majestically
+50,marcato,play strongly
+51,marziale,in a military style
+52,meno mosso,less speed (slower)
+53,mesto,sad
+54,mezzo forte,Moderately loud
+55,mezzo piano,Moderately soft
+56,mezzo-staccato (on more than one note),moderately short and detached
+57,mezzo-staccato (on one note),moderately short and detached
+58,Moderato,at a moderate speed
+59,Molto,very
+60,molto,very (e.g. "molto espr." = very expressive)
+61,non troppo,not too much
+62,Ottava sign,Play one octave higher or lower than written
+63,fermata,Hold for longer than written value
+64,pesante,heavy
+65,Piano,Soft
+66,Pianissimo,Very soft
+67,piu mosso,more speed (faster)
+68,Poco,a little
+69,presto,very fast
+70,prima/primo,first (e.g. "prima volta" = first time)
+71,Rallentando (rall.),gradually becoming slower
+72,Repeat,Repeat the music between the dots
+73,risoluto,bold / resolute
+74,Ritardando (rit. / ritard.),gradually becoming slower
+75,Ritenuto (riten. / rit.),immediately slower
+76,ritmico,rhythmically
+77,rubato/tempo rubato,with freedom of tempo
+78,scherzando/scherzoso,playfully / jokingly
+79,seconda/secondo,second
+80,semplice,simple
+81,sempre,always
+82,senza,without
+83,sforzando (sfz or sf),a strong accent / forced
+84,simile (sim.),continue in the same way
+85,Slur,Play smoothly
+86,sostenuto,sustained
+87,Staccato,short and detached
+88,staccatissimo,extremely short and detached
+89,stringendo,getting faster
+90,strong accent,play strongly
+91,subito,suddenly
+92,tanto,so much
+93,tenuto,hold for full value of note / play note with a slight pressure
+94,Tie,Play the first note and hold for value of both
+95,tranquillo,calmly
+96,triste/tristamente,sadly/sorrowfully
+97,vivace/vivo,lively and spirited

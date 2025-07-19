@@ -27,6 +27,17 @@ interface QuizSession {
   }>;
 }
 
+// Database format (with snake_case properties)
+interface DatabaseQuizQuestion {
+  id: string;
+  word: string;
+  correctAnswer?: string;
+  correct_answer?: string;
+  options: string[];
+  correctIndex?: number;
+  correct_index?: number;
+}
+
 interface QuizModeProps {
   vocabulary: unknown[]; // Keep for compatibility but won't be used
   category: '11plus' | 'music';
@@ -128,7 +139,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       setHasImage(false);
       setImagePath(null);
       
-      getImagePath(currentQuestion.word, category).then((path) => {
+      getImagePath(currentQuestion.id, category).then((path) => {
         setHasImage(!!path);
         setImagePath(path);
         setImageLoading(false);
@@ -204,7 +215,18 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       throw new Error(`Error loading new quiz: ${loadError.message}`);
     }
 
-    setQuizSession(newQuiz);
+    // Transform question properties to match frontend interface
+    const transformedQuiz = {
+      ...newQuiz,
+      questions: newQuiz.questions.map((q: DatabaseQuizQuestion): QuizQuestion => ({
+        id: q.id,
+        word: q.word,
+        correctAnswer: q.correctAnswer || q.correct_answer || '',
+        options: q.options,
+        correctIndex: q.correctIndex !== undefined ? q.correctIndex : (q.correct_index || 0)
+      }))
+    };
+    setQuizSession(transformedQuiz);
   };
 
   const handleResumeQuiz = async () => {
@@ -225,7 +247,18 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
           .delete()
           .in('id', abandonIds);
       }
-      setQuizSession(quizToResume);
+      // Transform question properties to match frontend interface
+      const transformedQuiz = {
+        ...quizToResume,
+        questions: quizToResume.questions.map((q: DatabaseQuizQuestion): QuizQuestion => ({
+          id: q.id,
+          word: q.word,
+          correctAnswer: q.correctAnswer || q.correct_answer || '',
+          options: q.options,
+          correctIndex: q.correctIndex !== undefined ? q.correctIndex : (q.correct_index || 0)
+        }))
+      };
+      setQuizSession(transformedQuiz);
       
       // Reset UI state for resume (get current progress from server)
       setCurrentQuestionIndex(quizToResume.current_question_index || 0);
@@ -609,7 +642,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
             let buttonClass = "w-full p-4 text-left rounded-lg border-2 transition-colors ";
             
             if (showResult) {
-              if (index === currentQuestion.correct_index) {
+              if (index === currentQuestion.correctIndex) {
                 buttonClass += "border-green-500 bg-green-100 text-green-800";
               } else if (index === selectedAnswer) {
                 buttonClass += "border-red-500 bg-red-100 text-red-800";

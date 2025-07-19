@@ -24,7 +24,7 @@ BEGIN
   END IF;
   
   -- Get the target word and its definition
-  SELECT word, definition 
+  SELECT id, word, definition 
   INTO target_word 
   FROM music_vocabulary 
   WHERE id = word_id;
@@ -73,6 +73,7 @@ BEGIN
   
   -- Build the result JSON
   result_json := jsonb_build_object(
+    'id', target_word.id::TEXT,
     'word', target_word.word,
     'correctAnswer', target_word.definition,
     'options', to_jsonb(shuffled_options),

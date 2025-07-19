@@ -15,12 +15,14 @@ export async function loadVocabulary(category: '11plus' | 'music' = '11plus'): P
       const line = lines[i];
       const values = parseCSVLine(line);
       
-      if (values.length >= 2) {
-        const word = values[0].trim();
-        const definition = values[1].trim();
+      if (values.length >= 3) {
+        const id = values[0].trim();
+        const word = values[1].trim();
+        const definition = values[2].trim();
         
         // Don't check image existence here - do it lazily when needed
         vocabulary.push({
+          id,
           word,
           definition,
           hasImage: false // Will be checked lazily
@@ -87,19 +89,19 @@ export async function loadVocabularyImageManifest(category: '11plus' | 'music'):
   }
 }
 
-export async function checkImageExists(word: string, category: '11plus' | 'music' = '11plus'): Promise<boolean> {
+export async function checkImageExists(id: string, category: '11plus' | 'music' = '11plus'): Promise<boolean> {
   try {
     const manifest = await loadVocabularyImageManifest(category);
-    return word.toLowerCase() in manifest;
+    return id in manifest;
   } catch {
     return false;
   }
 }
 
-export async function getImagePath(word: string, category: '11plus' | 'music' = '11plus'): Promise<string | null> {
+export async function getImagePath(id: string, category: '11plus' | 'music' = '11plus'): Promise<string | null> {
   try {
     const manifest = await loadVocabularyImageManifest(category);
-    const filename = manifest[word.toLowerCase()];
+    const filename = manifest[id];
     
     if (filename) {
       const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
@@ -133,6 +135,7 @@ export function generateQuizQuestion(
   const correctIndex = shuffledOptions.indexOf(targetWord.definition);
   
   return {
+    id: targetWord.id,
     word: targetWord.word,
     correctAnswer: targetWord.definition,
     options: shuffledOptions,

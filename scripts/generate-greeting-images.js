@@ -125,16 +125,16 @@ function generateVocabularyImagesList(category) {
     // Read all files in the images directory
     const files = fs.readdirSync(imageDir);
     
-    // Filter for image files and create word-to-filename mapping
+    // Filter for image files and create ID-to-filename mapping
     const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
     const imageManifest = {};
     
     files.forEach(file => {
       const ext = path.extname(file).toLowerCase();
-      const word = path.basename(file, ext);
+      const id = path.basename(file, ext);
       
       if (imageExtensions.includes(ext)) {
-        imageManifest[word] = file;
+        imageManifest[id] = file;
       }
     });
 

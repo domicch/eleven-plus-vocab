@@ -61,6 +61,7 @@ async function testGenerateQuizQuestion() {
 
     console.log('✅ Quiz question generated successfully!');
     console.log('📋 Quiz data:');
+    console.log(`   ID: "${quizData.id}"`);
     console.log(`   Word: "${quizData.word}"`);
     console.log(`   Correct Answer: "${quizData.correctAnswer}"`);
     console.log(`   Correct Index: ${quizData.correctIndex}`);
@@ -74,6 +75,7 @@ async function testGenerateQuizQuestion() {
     console.log('\n3️⃣ Validating results...');
     
     const validations = [
+      { test: 'ID matches', pass: quizData.id === testWord.id.toString() },
       { test: 'Word matches', pass: quizData.word === testWord.word },
       { test: 'Correct answer matches', pass: quizData.correctAnswer === testWord.definition },
       { test: 'Has 4 options', pass: quizData.options.length === 4 },

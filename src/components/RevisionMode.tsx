@@ -50,7 +50,7 @@ export default function RevisionMode({ vocabulary, category }: RevisionModeProps
       setHasImage(false);
       setImagePath(null);
       
-      getImagePath(currentWord.word, category).then((path) => {
+      getImagePath(currentWord.id, category).then((path) => {
         setHasImage(!!path);
         setImagePath(path);
         setImageLoading(false);

@@ -86,10 +86,18 @@ describe('music_generatequizquestion Database Function', () => {
         word_id: testWordId
       });
 
+      expect(data).toHaveProperty('id');
       expect(data).toHaveProperty('word');
       expect(data).toHaveProperty('correctAnswer');
       expect(data).toHaveProperty('options');
       expect(data).toHaveProperty('correctIndex');
+      
+      // Check data types
+      expect(typeof data.id).toBe('string');
+      expect(typeof data.word).toBe('string');
+      expect(typeof data.correctAnswer).toBe('string');
+      expect(Array.isArray(data.options)).toBe(true);
+      expect(typeof data.correctIndex).toBe('number');
     });
 
     test('should return correct word and answer', async () => {
@@ -97,6 +105,7 @@ describe('music_generatequizquestion Database Function', () => {
         word_id: testWordId
       });
 
+      expect(data.id).toBe(testWord.id.toString());
       expect(data.word).toBe(testWord.word);
       expect(data.correctAnswer).toBe(testWord.definition);
     });
@@ -244,6 +253,7 @@ describe('music_generatequizquestion Database Function', () => {
         });
 
         expect(error).toBeNull();
+        expect(data.id).toBe(word.id.toString());
         expect(data.word).toBe(word.word);
         expect(data.correctAnswer).toBe(word.definition);
         expect(data.options).toHaveLength(4);
