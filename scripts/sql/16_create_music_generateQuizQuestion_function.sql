@@ -1,7 +1,10 @@
 -- Step 16: Create music_generateQuizQuestion database function
 -- This function generates a quiz question with 4 multiple choice options for a given music vocabulary word ID
 
-CREATE OR REPLACE FUNCTION music_generatequizquestion(word_id INTEGER)
+CREATE OR REPLACE FUNCTION music_generatequizquestion(
+  word_id INTEGER,
+  question_type TEXT DEFAULT 'word_to_definition'
+)
 RETURNS JSONB
 SECURITY DEFINER -- Runs with elevated privileges
 SET search_path = public
@@ -17,10 +20,16 @@ DECLARE
   temp_text TEXT;
   random_pos INTEGER;
   result_json JSONB;
+  image_filename TEXT;
 BEGIN
   -- Validate input
   IF word_id IS NULL THEN
     RETURN NULL;
+  END IF;
+  
+  -- Validate question_type
+  IF question_type NOT IN ('word_to_definition', 'image_to_word') THEN
+    RETURN jsonb_build_object('error', 'Invalid question_type. Must be word_to_definition or image_to_word');
   END IF;
   
   -- Get the target word and its definition
@@ -34,22 +43,37 @@ BEGIN
     RETURN NULL;
   END IF;
   
-  -- Get 3 random wrong answers (definitions from other words)
-  SELECT ARRAY(
-    SELECT definition 
-    FROM music_vocabulary 
-    WHERE id != word_id 
-    ORDER BY RANDOM() 
-    LIMIT 3
-  ) INTO wrong_answers;
+  -- Generate options based on question type
+  IF question_type = 'image_to_word' THEN
+    -- Get 3 random wrong answers (words from other vocabulary)
+    SELECT ARRAY(
+      SELECT word 
+      FROM music_vocabulary 
+      WHERE id != word_id 
+      ORDER BY RANDOM() 
+      LIMIT 3
+    ) INTO wrong_answers;
+    
+    -- Create array with correct word and wrong words
+    all_options := ARRAY[target_word.word] || wrong_answers;
+  ELSE
+    -- word_to_definition: get wrong definitions
+    SELECT ARRAY(
+      SELECT definition 
+      FROM music_vocabulary 
+      WHERE id != word_id 
+      ORDER BY RANDOM() 
+      LIMIT 3
+    ) INTO wrong_answers;
+    
+    -- Create array with correct definition and wrong definitions
+    all_options := ARRAY[target_word.definition] || wrong_answers;
+  END IF;
   
   -- Check if we have enough vocabulary words for wrong answers
   IF array_length(wrong_answers, 1) < 3 THEN
     RAISE EXCEPTION 'Insufficient music vocabulary data: need at least 4 words total';
   END IF;
-  
-  -- Create array with correct answer and wrong answers
-  all_options := ARRAY[target_word.definition] || wrong_answers;
   
   -- Shuffle the options using Fisher-Yates algorithm
   shuffled_options := all_options;
@@ -64,21 +88,42 @@ BEGIN
   END LOOP;
   
   -- Find the index of the correct answer in shuffled array
-  FOR i IN 1 .. 4 LOOP
-    IF shuffled_options[i] = target_word.definition THEN
-      correct_index := i - 1; -- Convert to 0-based index for JavaScript
-      EXIT;
-    END IF;
-  END LOOP;
+  IF question_type = 'image_to_word' THEN
+    FOR i IN 1 .. 4 LOOP
+      IF shuffled_options[i] = target_word.word THEN
+        correct_index := i - 1; -- Convert to 0-based index for JavaScript
+        EXIT;
+      END IF;
+    END LOOP;
+  ELSE
+    FOR i IN 1 .. 4 LOOP
+      IF shuffled_options[i] = target_word.definition THEN
+        correct_index := i - 1; -- Convert to 0-based index for JavaScript
+        EXIT;
+      END IF;
+    END LOOP;
+  END IF;
   
-  -- Build the result JSON
-  result_json := jsonb_build_object(
-    'id', target_word.id::TEXT,
-    'word', target_word.word,
-    'correctAnswer', target_word.definition,
-    'options', to_jsonb(shuffled_options),
-    'correctIndex', correct_index
-  );
+  -- Build the result JSON based on question type
+  IF question_type = 'image_to_word' THEN
+    result_json := jsonb_build_object(
+      'id', target_word.id::TEXT,
+      'word', target_word.word,
+      'correctWord', target_word.word,
+      'options', to_jsonb(shuffled_options),
+      'correctIndex', correct_index,
+      'questionType', 'image_to_word'
+    );
+  ELSE
+    result_json := jsonb_build_object(
+      'id', target_word.id::TEXT,
+      'word', target_word.word,
+      'correctAnswer', target_word.definition,
+      'options', to_jsonb(shuffled_options),
+      'correctIndex', correct_index,
+      'questionType', 'word_to_definition'
+    );
+  END IF;
   
   RETURN result_json;
   
@@ -93,7 +138,7 @@ END;
 $$;
 
 -- Grant execution permission to authenticated users
-GRANT EXECUTE ON FUNCTION music_generatequizquestion(INTEGER) TO authenticated;
+GRANT EXECUTE ON FUNCTION music_generatequizquestion(INTEGER, TEXT) TO authenticated;
 
 -- Create some test queries to verify the function works
 -- (These are comments for manual testing)

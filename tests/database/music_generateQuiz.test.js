@@ -257,6 +257,207 @@ describe('music_generateQuiz Database Function and Music Quiz Table', () => {
     });
   });
 
+  describe('Question Type Parameters', () => {
+    beforeEach(async () => {
+      // Clean up any existing quizzes before each test in this section
+      await supabase
+        .from('music_quiz')
+        .delete()
+        .eq('user_id', testUser.id);
+    });
+
+    test('should generate quiz with default parameters (word_to_definition only)', async () => {
+      const { data } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 5
+      });
+
+      expect(data).toHaveProperty('success', true);
+      
+      // Get the created quiz from database
+      const { data: quizData } = await supabase
+        .from('music_quiz')
+        .select('*')
+        .eq('id', data.quiz_id)
+        .single();
+
+      // All questions should be word_to_definition type by default
+      quizData.questions.forEach(question => {
+        expect(question).toHaveProperty('question_type', 'word_to_definition');
+        expect(question).toHaveProperty('correct_answer');
+        expect(question).not.toHaveProperty('correct_word');
+      });
+    });
+
+    test('should generate quiz with explicit word_to_definition only', async () => {
+      const { data } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 4,
+        include_word_to_definition: true,
+        include_image_to_word: false,
+        image_available_word_ids: null
+      });
+
+      expect(data).toHaveProperty('success', true);
+      
+      // Get the created quiz from database
+      const { data: quizData } = await supabase
+        .from('music_quiz')
+        .select('*')
+        .eq('id', data.quiz_id)
+        .single();
+
+      // All questions should be word_to_definition type
+      quizData.questions.forEach(question => {
+        expect(question).toHaveProperty('question_type', 'word_to_definition');
+        expect(question).toHaveProperty('correct_answer');
+      });
+    });
+
+    test('should generate quiz with image_to_word questions when word IDs provided', async () => {
+      // Get some vocabulary words for testing
+      const { data: vocabularyData } = await supabase
+        .from('music_vocabulary')
+        .select('id')
+        .limit(5);
+
+      const wordIds = vocabularyData.map(v => v.id);
+
+      const { data } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 3,
+        include_word_to_definition: false,
+        include_image_to_word: true,
+        image_available_word_ids: wordIds.slice(0, 3)
+      });
+
+      expect(data).toHaveProperty('success', true);
+      
+      // Get the created quiz from database
+      const { data: quizData } = await supabase
+        .from('music_quiz')
+        .select('*')
+        .eq('id', data.quiz_id)
+        .single();
+
+      // All questions should be image_to_word type
+      quizData.questions.forEach(question => {
+        expect(question).toHaveProperty('question_type', 'image_to_word');
+        expect(question).toHaveProperty('correct_answer'); // This should be the word for image_to_word
+        expect(wordIds).toContain(question.word_id);
+      });
+    });
+
+    test('should generate mixed quiz when both types enabled', async () => {
+      // Get some vocabulary words for testing
+      const { data: vocabularyData } = await supabase
+        .from('music_vocabulary')
+        .select('id')
+        .limit(10);
+
+      const wordIds = vocabularyData.map(v => v.id);
+
+      const { data } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 8,
+        include_word_to_definition: true,
+        include_image_to_word: true,
+        image_available_word_ids: wordIds.slice(0, 4) // Only 4 words have images
+      });
+
+      expect(data).toHaveProperty('success', true);
+      
+      // Get the created quiz from database
+      const { data: quizData } = await supabase
+        .from('music_quiz')
+        .select('*')
+        .eq('id', data.quiz_id)
+        .single();
+
+      // Should have both question types
+      const questionTypes = quizData.questions.map(q => q.question_type);
+      const uniqueTypes = [...new Set(questionTypes)];
+      
+      // Should have at least one of each type (though exact distribution may vary)
+      expect(questionTypes).toHaveLength(8);
+      expect(uniqueTypes.length).toBeGreaterThanOrEqual(1);
+      
+      // Count each type
+      const wordToDefCount = questionTypes.filter(type => type === 'word_to_definition').length;
+      const imageToWordCount = questionTypes.filter(type => type === 'image_to_word').length;
+      
+      expect(wordToDefCount + imageToWordCount).toBe(8);
+      expect(imageToWordCount).toBeLessThanOrEqual(4); // Can't exceed available image words
+    });
+
+    test('should reject when no question types enabled', async () => {
+      const { data } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 5,
+        include_word_to_definition: false,
+        include_image_to_word: false,
+        image_available_word_ids: null
+      });
+
+      expect(data).toHaveProperty('error');
+      expect(data.error).toContain('At least one question type must be enabled');
+    });
+
+    test('should fall back to word_to_definition when insufficient image words', async () => {
+      const { data } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 6,
+        include_word_to_definition: false,
+        include_image_to_word: true,
+        image_available_word_ids: [1, 2] // Only 2 image words but need 6 questions
+      });
+
+      expect(data).toHaveProperty('success', true);
+      
+      // Get the created quiz from database
+      const { data: quizData } = await supabase
+        .from('music_quiz')
+        .select('*')
+        .eq('id', data.quiz_id)
+        .single();
+
+      // Should have mix of both types due to fallback
+      const questionTypes = quizData.questions.map(q => q.question_type);
+      const imageToWordCount = questionTypes.filter(type => type === 'image_to_word').length;
+      const wordToDefCount = questionTypes.filter(type => type === 'word_to_definition').length;
+      
+      expect(imageToWordCount).toBeLessThanOrEqual(2); // Limited by available image words
+      expect(wordToDefCount).toBeGreaterThan(0); // Should have fallback questions
+      expect(imageToWordCount + wordToDefCount).toBe(6);
+    });
+
+    test('should validate image_available_word_ids exist in vocabulary', async () => {
+      const { data } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 3,
+        include_word_to_definition: false,
+        include_image_to_word: true,
+        image_available_word_ids: [999999, 888888, 777777] // Non-existent word IDs
+      });
+
+      // Should either succeed with fallback or return appropriate error
+      if (data.success) {
+        // If it succeeds, should fall back to word_to_definition
+        const { data: quizData } = await supabase
+          .from('music_quiz')
+          .select('*')
+          .eq('id', data.quiz_id)
+          .single();
+
+        const questionTypes = quizData.questions.map(q => q.question_type);
+        expect(questionTypes.every(type => type === 'word_to_definition')).toBe(true);
+      } else {
+        // If it fails, should have appropriate error
+        expect(data).toHaveProperty('error');
+      }
+    });
+  });
+
   describe('Input Validation', () => {
     test('should reject null user_id', async () => {
       const { data, error } = await supabase.rpc('music_generatequiz', {

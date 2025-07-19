@@ -2,11 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase, QuizQuestion } from '@/lib/supabase';
-import { getRandomDaleImage, speakWord } from '@/utils/vocabulary';
+import { getRandomDaleImage, speakWord, getVocabularyWordsWithImages, hasImagesAvailable, getImageAvailableCount } from '@/utils/vocabulary';
 import { markTodayCompleted, checkTodayCompletion } from '@/utils/streaks';
 import { getImagePath } from '@/utils/vocabulary';
 import type { User } from '@supabase/supabase-js';
 import Image from 'next/image';
+import QuizTypeSelector, { QuizTypeSettings } from './QuizTypeSelector';
 
 interface QuizSession {
   id: string;
@@ -29,13 +30,18 @@ interface QuizSession {
 
 // Database format (with snake_case properties)
 interface DatabaseQuizQuestion {
-  id: string;
+  id?: string;
+  word_id?: number;
   word: string;
   correctAnswer?: string;
   correct_answer?: string;
+  correctWord?: string;
+  correct_word?: string;
   options: string[];
   correctIndex?: number;
   correct_index?: number;
+  questionType?: 'word_to_definition' | 'image_to_word';
+  question_type?: 'word_to_definition' | 'image_to_word';
 }
 
 interface QuizModeProps {
@@ -71,6 +77,15 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
   const [user, setUser] = useState<User | null>(null);
   const [todayCompleted, setTodayCompleted] = useState(false);
   const [earnedStar, setEarnedStar] = useState(false);
+  
+  // Quiz type settings state
+  const [showQuizTypeSelector, setShowQuizTypeSelector] = useState(false);
+  const [quizTypeSettings, setQuizTypeSettings] = useState<QuizTypeSettings>({
+    includeWordToDefinition: true,
+    includeImageToWord: false
+  });
+  const [imagesAvailable, setImagesAvailable] = useState(false);
+  const [imageCount, setImageCount] = useState(0);
   
   // Ref to prevent duplicate requests
   const loadingRef = useRef(false);
@@ -124,6 +139,28 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     }
   }, [user, category]);
 
+  // Load image availability when component mounts
+  useEffect(() => {
+    const loadImageAvailability = async () => {
+      if (category === 'music') {
+        try {
+          const hasImages = await hasImagesAvailable(category);
+          const count = await getImageAvailableCount(category);
+          setImagesAvailable(hasImages);
+          setImageCount(count);
+          
+          // Don't automatically enable image-to-word - let user choose
+        } catch (error) {
+          console.warn('Could not load image availability:', error);
+          setImagesAvailable(false);
+          setImageCount(0);
+        }
+      }
+    };
+
+    loadImageAvailability();
+  }, [category]);
+
   // Load or create quiz when user is available
   useEffect(() => {
     if (user && !quizSession && !loadingRef.current) {
@@ -135,6 +172,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
   useEffect(() => {
     if (quizSession && quizSession.questions.length > 0 && currentQuestionIndex < quizSession.questions.length) {
       const currentQuestion = quizSession.questions[currentQuestionIndex];
+      
       setImageLoading(true);
       setHasImage(false);
       setImagePath(null);
@@ -174,8 +212,13 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
         return; // Exit early, user will decide via prompt
       }
 
-      // No active quizzes, create new one
-      await createNewQuiz();
+      // No active quizzes, show quiz type selector for music or create new one for 11plus
+      if (category === 'music' && !showQuizTypeSelector) {
+        setShowQuizTypeSelector(true);
+        return;
+      } else {
+        await createNewQuiz();
+      }
     } catch (err) {
       console.error('Quiz loading error:', err);
       setError(err instanceof Error ? err.message : 'Failed to load quiz');
@@ -185,15 +228,67 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     }
   };
 
-  const createNewQuiz = async () => {
+  const createNewQuiz = async (customSettings?: QuizTypeSettings) => {
     if (!supabase) throw new Error('Supabase client not available');
     if (!user) throw new Error('User not authenticated');
     
     const functionName = category === '11plus' ? 'generatequiz' : 'music_generatequiz';
-    const { data: newQuizResult, error: createError } = await supabase.rpc(functionName, {
+    
+    // For music quizzes, we can support mixed question types
+    // For now, default to word-to-definition only, but this can be enhanced later
+    interface BasicRpcParams {
+      user_id: string;
+      question_count: number;
+    }
+    
+    interface MusicRpcParams extends BasicRpcParams {
+      include_word_to_definition: boolean;
+      include_image_to_word: boolean;
+      image_available_word_ids: number[] | null;
+    }
+    
+    let rpcParams: BasicRpcParams | MusicRpcParams = {
       user_id: user.id,
       question_count: 10
-    });
+    };
+    
+    // If music category, add support for image-to-word questions
+    if (category === 'music') {
+      try {
+        // Use the new vocabulary utilities to get available image word IDs
+        const musicImageIds = await getVocabularyWordsWithImages(category);
+        
+        const effectiveSettings = customSettings || quizTypeSettings;
+        
+        console.log('Creating quiz with settings:', {
+          customSettings,
+          quizTypeSettings,
+          effectiveSettings,
+          imagesAvailable,
+          musicImageIds: musicImageIds.length
+        });
+        
+        rpcParams = {
+          ...rpcParams,
+          include_word_to_definition: effectiveSettings.includeWordToDefinition,
+          include_image_to_word: effectiveSettings.includeImageToWord && imagesAvailable,
+          image_available_word_ids: (effectiveSettings.includeImageToWord && imagesAvailable) ? musicImageIds : null
+        };
+        
+        console.log('Final RPC params:', rpcParams);
+      } catch (error) {
+        console.warn('Could not load music images, using word-to-definition only:', error);
+        // Fall back to word-to-definition only if we can't load the images
+        rpcParams = {
+          ...rpcParams,
+          include_word_to_definition: true,
+          include_image_to_word: false,
+          image_available_word_ids: null
+        };
+      }
+    }
+    
+    const { data: newQuizResult, error: createError } = await supabase.rpc(functionName, rpcParams);
 
     if (createError) {
       throw new Error(`Error creating quiz: ${createError.message}`);
@@ -219,11 +314,13 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     const transformedQuiz = {
       ...newQuiz,
       questions: newQuiz.questions.map((q: DatabaseQuizQuestion): QuizQuestion => ({
-        id: q.id,
+        id: q.id || (q.word_id ? q.word_id.toString() : ''),
         word: q.word,
-        correctAnswer: q.correctAnswer || q.correct_answer || '',
+        correctAnswer: q.correctAnswer || q.correct_answer || q.correctWord || q.correct_word || '',
         options: q.options,
-        correctIndex: q.correctIndex !== undefined ? q.correctIndex : (q.correct_index || 0)
+        correctIndex: q.correctIndex !== undefined ? q.correctIndex : (q.correct_index || 0),
+        questionType: q.questionType || q.question_type || 'word_to_definition',
+        correctWord: q.correctWord || q.correct_word
       }))
     };
     setQuizSession(transformedQuiz);
@@ -251,11 +348,13 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       const transformedQuiz = {
         ...quizToResume,
         questions: quizToResume.questions.map((q: DatabaseQuizQuestion): QuizQuestion => ({
-          id: q.id,
+          id: q.id || (q.word_id ? q.word_id.toString() : ''),
           word: q.word,
-          correctAnswer: q.correctAnswer || q.correct_answer || '',
+          correctAnswer: q.correctAnswer || q.correct_answer || q.correctWord || q.correct_word || '',
           options: q.options,
-          correctIndex: q.correctIndex !== undefined ? q.correctIndex : (q.correct_index || 0)
+          correctIndex: q.correctIndex !== undefined ? q.correctIndex : (q.correct_index || 0),
+          questionType: q.questionType || q.question_type || 'word_to_definition',
+          correctWord: q.correctWord || q.correct_word
         }))
       };
       setQuizSession(transformedQuiz);
@@ -292,8 +391,12 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
         .delete()
         .in('id', quizIds);
 
-      // Create new quiz
-      await createNewQuiz();
+      // Show quiz type selector for music or create new quiz directly for 11plus
+      if (category === 'music') {
+        setShowQuizTypeSelector(true);
+      } else {
+        await createNewQuiz();
+      }
       
     } catch (err) {
       console.error('Error starting new quiz:', err);
@@ -471,6 +574,38 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     );
   }
 
+  // Show quiz type selector if no active quiz and music category
+  if (!quizSession && !loading && !showResumePrompt && user && category === 'music' && showQuizTypeSelector) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <QuizTypeSelector
+          category={category}
+          onSettingsChange={async (settings) => {
+            console.log('QuizTypeSelector onSettingsChange called with:', settings);
+            setQuizTypeSettings(settings);
+            console.log('Updated quizTypeSettings state to:', settings);
+            setShowQuizTypeSelector(false);
+            // Create quiz directly with the new settings (don't wait for state update)
+            if (user) {
+              try {
+                setLoading(true);
+                await createNewQuiz(settings);
+              } catch (err) {
+                console.error('Error creating quiz:', err);
+                setError(err instanceof Error ? err.message : 'Failed to create quiz');
+              } finally {
+                setLoading(false);
+              }
+            }
+          }}
+          initialSettings={quizTypeSettings}
+          hasImagesAvailable={imagesAvailable}
+          imageCount={imageCount}
+        />
+      </div>
+    );
+  }
+
   // Resume quiz prompt
   if (showResumePrompt) {
     return (
@@ -581,11 +716,25 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
 
   // Active quiz state
   const currentQuestion = quizSession.questions[currentQuestionIndex];
+  const isImageToWord = currentQuestion.questionType === 'image_to_word';
 
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6 text-center">
-        <h2 className="text-3xl font-bold text-purple-600 mb-2">Quiz Mode</h2>
+        <div className="flex items-center justify-center gap-4 mb-2">
+          <h2 className="text-3xl font-bold text-purple-600">Quiz Mode</h2>
+          {category === 'music' && (
+            <button
+              onClick={() => setShowQuizTypeSelector(true)}
+              className="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-full transition-colors"
+              title="Quiz Type Settings"
+            >
+              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+              </svg>
+            </button>
+          )}
+        </div>
         <p className="text-gray-600">
           Question {currentQuestionIndex + 1} of {quizSession.questions.length} | Score: {score}
         </p>
@@ -594,45 +743,88 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       <div className="bg-white rounded-xl shadow-lg p-8">
         {/* Question */}
         <div className="text-center mb-8">
-          <h3 className="text-xl text-gray-600 mb-4">What does this word mean?</h3>
-          <div className="flex items-center justify-center gap-2 sm:gap-4 mb-6 px-4">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 break-words text-center flex-1 min-w-0">
-              {currentQuestion.word}
-            </h1>
-            <button
-              onClick={() => speakWord(currentQuestion.word)}
-              className="bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-full transition-colors shadow-md"
-              title="Pronounce word"
-            >
-              <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-              </svg>
-            </button>
-          </div>
+          {isImageToWord ? (
+            <>
+              <h3 className="text-xl text-gray-600 mb-4">What is this musical notation called?</h3>
+              {/* For image-to-word questions, show only the image */}
+              {imageLoading && (
+                <div className="mb-6">
+                  <div className="w-full max-w-80 h-60 mx-auto bg-gray-200 rounded-lg flex items-center justify-center">
+                    <div className="text-gray-500">Loading image...</div>
+                  </div>
+                </div>
+              )}
+              
+              {!imageLoading && hasImage && (
+                <div className="mb-6">
+                  <div className="relative w-full max-w-80 h-60 mx-auto rounded-lg overflow-hidden shadow-md bg-white border-2 border-gray-200">
+                    <Image
+                      src={imagePath!}
+                      alt="Musical notation"
+                      fill
+                      className="object-contain p-4"
+                      onError={() => {
+                        setHasImage(false);
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+              
+              {!imageLoading && !hasImage && (
+                <div className="mb-6">
+                  <div className="w-full max-w-80 h-60 mx-auto bg-red-100 rounded-lg flex items-center justify-center border-2 border-red-200">
+                    <div className="text-red-600 text-center">
+                      <div className="text-2xl mb-2">⚠️</div>
+                      <div>Image not available</div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <>
+              <h3 className="text-xl text-gray-600 mb-4">What does this word mean?</h3>
+              <div className="flex items-center justify-center gap-2 sm:gap-4 mb-6 px-4">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 break-words text-center flex-1 min-w-0">
+                  {currentQuestion.word}
+                </h1>
+                <button
+                  onClick={() => speakWord(currentQuestion.word)}
+                  className="bg-orange-500 hover:bg-orange-600 text-white p-3 rounded-full transition-colors shadow-md"
+                  title="Pronounce word"
+                >
+                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+                  </svg>
+                </button>
+              </div>
 
-          {/* Image Display */}
-          {imageLoading && (
-            <div className="mb-6">
-              <div className="w-full max-w-64 h-48 mx-auto bg-gray-200 rounded-lg flex items-center justify-center">
-                <div className="text-gray-500">Checking for image...</div>
-              </div>
-            </div>
-          )}
-          
-          {!imageLoading && hasImage && (
-            <div className="mb-6">
-              <div className="relative w-full max-w-64 h-48 mx-auto rounded-lg overflow-hidden shadow-md">
-                <Image
-                  src={imagePath!}
-                  alt={currentQuestion.word}
-                  fill
-                  className="object-cover"
-                  onError={() => {
-                    setHasImage(false);
-                  }}
-                />
-              </div>
-            </div>
+              {/* Image Display for word-to-definition questions (optional) */}
+              {imageLoading && (
+                <div className="mb-6">
+                  <div className="w-full max-w-64 h-48 mx-auto bg-gray-200 rounded-lg flex items-center justify-center">
+                    <div className="text-gray-500">Checking for image...</div>
+                  </div>
+                </div>
+              )}
+              
+              {!imageLoading && hasImage && (
+                <div className="mb-6">
+                  <div className="relative w-full max-w-64 h-48 mx-auto rounded-lg overflow-hidden shadow-md">
+                    <Image
+                      src={imagePath!}
+                      alt={currentQuestion.word}
+                      fill
+                      className="object-cover"
+                      onError={() => {
+                        setHasImage(false);
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
 

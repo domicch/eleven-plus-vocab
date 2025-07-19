@@ -365,3 +365,75 @@ export async function getRandomDaleImage(mood: 'happy' | 'unhappy'): Promise<str
   const randomIndex = Math.floor(Math.random() * availableImages.length);
   return availableImages[randomIndex];
 }
+
+// Quiz-specific utility functions
+
+/**
+ * Get all vocabulary word IDs that have images available for a category
+ * @param category The vocabulary category ('11plus' or 'music')
+ * @returns Array of word IDs (as integers) that have images available
+ */
+export async function getVocabularyWordsWithImages(category: '11plus' | 'music'): Promise<number[]> {
+  try {
+    const manifest = await loadVocabularyImageManifest(category);
+    return Object.keys(manifest).map(id => parseInt(id, 10)).filter(id => !isNaN(id));
+  } catch (error) {
+    console.error(`Error getting vocabulary words with images for ${category}:`, error);
+    return [];
+  }
+}
+
+/**
+ * Check if a category has any images available for image-to-word questions
+ * @param category The vocabulary category ('11plus' or 'music')
+ * @returns Boolean indicating if images are available
+ */
+export async function hasImagesAvailable(category: '11plus' | 'music'): Promise<boolean> {
+  const wordsWithImages = await getVocabularyWordsWithImages(category);
+  return wordsWithImages.length > 0;
+}
+
+/**
+ * Get the count of vocabulary words that have images available
+ * @param category The vocabulary category ('11plus' or 'music')
+ * @returns Number of words with images available
+ */
+export async function getImageAvailableCount(category: '11plus' | 'music'): Promise<number> {
+  const wordsWithImages = await getVocabularyWordsWithImages(category);
+  return wordsWithImages.length;
+}
+
+/**
+ * Check if a specific word ID has an image available
+ * @param wordId The word ID to check (as string or number)
+ * @param category The vocabulary category ('11plus' or 'music')
+ * @returns Boolean indicating if the word has an image
+ */
+export async function wordHasImage(wordId: string | number, category: '11plus' | 'music'): Promise<boolean> {
+  const idString = wordId.toString();
+  return await checkImageExists(idString, category);
+}
+
+/**
+ * Get quiz type recommendations based on available images
+ * @param category The vocabulary category ('11plus' or 'music')
+ * @returns Object with recommendations for quiz types
+ */
+export async function getQuizTypeRecommendations(category: '11plus' | 'music'): Promise<{
+  canUseImageToWord: boolean;
+  imageWordCount: number;
+  recommendMixed: boolean;
+  minQuestionsForMixed: number;
+}> {
+  const imageWordCount = await getImageAvailableCount(category);
+  const canUseImageToWord = imageWordCount > 0;
+  const minQuestionsForMixed = 4; // Need at least 4 questions to have meaningful mix
+  const recommendMixed = imageWordCount >= minQuestionsForMixed;
+
+  return {
+    canUseImageToWord,
+    imageWordCount,
+    recommendMixed,
+    minQuestionsForMixed
+  };
+}
