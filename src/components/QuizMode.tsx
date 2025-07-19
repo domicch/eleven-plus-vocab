@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase, QuizQuestion } from '@/lib/supabase';
-import { checkImageExists, getRandomDaleImage, speakWord } from '@/utils/vocabulary';
+import { getRandomDaleImage, speakWord } from '@/utils/vocabulary';
 import { markTodayCompleted, checkTodayCompletion } from '@/utils/streaks';
+import { getImagePath } from '@/utils/vocabulary';
 import type { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
@@ -49,6 +50,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
   const [showResumePrompt, setShowResumePrompt] = useState(false);
   const [pendingActiveQuizzes, setPendingActiveQuizzes] = useState<QuizSession[]>([]);
   const [hasImage, setHasImage] = useState(false);
+  const [imagePath, setImagePath] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [showDaleReaction, setShowDaleReaction] = useState(false);
   const [daleReactionImage, setDaleReactionImage] = useState<string>('');
@@ -124,13 +126,15 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       const currentQuestion = quizSession.questions[currentQuestionIndex];
       setImageLoading(true);
       setHasImage(false);
+      setImagePath(null);
       
-      checkImageExists(currentQuestion.word, category).then((exists) => {
-        setHasImage(exists);
+      getImagePath(currentQuestion.word, category).then((path) => {
+        setHasImage(!!path);
+        setImagePath(path);
         setImageLoading(false);
       });
     }
-  }, [quizSession, currentQuestionIndex]);
+  }, [quizSession, currentQuestionIndex, category]);
 
   const loadOrCreateQuiz = async () => {
     if (!supabase || !user || loadingRef.current) return;
@@ -586,7 +590,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
             <div className="mb-6">
               <div className="relative w-full max-w-64 h-48 mx-auto rounded-lg overflow-hidden shadow-md">
                 <Image
-                  src={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/images/words/${category}/${currentQuestion.word.toLowerCase()}.jpg`}
+                  src={imagePath!}
                   alt={currentQuestion.word}
                   fill
                   className="object-cover"

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { VocabularyWord } from '@/types/vocabulary';
-import { checkImageExists, speakWord } from '@/utils/vocabulary';
+import { getImagePath, speakWord } from '@/utils/vocabulary';
 import Image from 'next/image';
 
 interface RevisionModeProps {
@@ -14,6 +14,7 @@ export default function RevisionMode({ vocabulary, category }: RevisionModeProps
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showDefinition, setShowDefinition] = useState(false);
   const [hasImage, setHasImage] = useState(false);
+  const [imagePath, setImagePath] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
   const [letterIndex, setLetterIndex] = useState<{ [letter: string]: number }>({});
 
@@ -47,13 +48,15 @@ export default function RevisionMode({ vocabulary, category }: RevisionModeProps
     if (currentWord) {
       setImageLoading(true);
       setHasImage(false);
+      setImagePath(null);
       
-      checkImageExists(currentWord.word, category).then((exists) => {
-        setHasImage(exists);
+      getImagePath(currentWord.word, category).then((path) => {
+        setHasImage(!!path);
+        setImagePath(path);
         setImageLoading(false);
       });
     }
-  }, [currentWord]);
+  }, [currentWord, category]);
 
   const nextCard = () => {
     setCurrentIndex((prev) => (prev + 1) % vocabulary.length);
@@ -145,7 +148,7 @@ export default function RevisionMode({ vocabulary, category }: RevisionModeProps
           <div className="mb-8 flex justify-center">
             <div className="w-full max-w-80 rounded-lg overflow-hidden shadow-md">
               <Image
-                src={`${process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : ''}/images/words/${category}/${currentWord.word.toLowerCase()}.jpg`}
+                src={imagePath!}
                 alt={currentWord.word}
                 width={320}
                 height={240}

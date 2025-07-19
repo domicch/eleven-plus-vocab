@@ -28,6 +28,9 @@ export async function loadVocabulary(category: '11plus' | 'music' = '11plus'): P
       }
     }
     
+    // Sort vocabulary alphabetically by word (case-insensitive)
+    vocabulary.sort((a, b) => a.word.toLowerCase().localeCompare(b.word.toLowerCase()));
+    
     return vocabulary;
   } catch (error) {
     console.error('Error loading vocabulary:', error);
@@ -57,13 +60,55 @@ function parseCSVLine(line: string): string[] {
   return result;
 }
 
-export async function checkImageExists(word: string, category: '11plus' | 'music' = '11plus'): Promise<boolean> {
+// Cache for vocabulary image manifests
+const vocabularyImageManifests: Record<string, Record<string, string>> = {};
+
+export async function loadVocabularyImageManifest(category: '11plus' | 'music'): Promise<Record<string, string>> {
+  if (vocabularyImageManifests[category]) {
+    return vocabularyImageManifests[category];
+  }
+
   try {
     const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
-    const response = await fetch(`${basePath}/images/words/${category}/${word.toLowerCase()}.jpg`, { method: 'HEAD' });
-    return response.ok;
+    const manifestFile = category === '11plus' ? '11plus-images.json' : 'music-images.json';
+    const response = await fetch(`${basePath}/${manifestFile}`);
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${category} images manifest`);
+    }
+    
+    const manifest: Record<string, string> = await response.json();
+    vocabularyImageManifests[category] = manifest;
+    return manifest;
+  } catch (error) {
+    console.error(`Error loading ${category} vocabulary images manifest:`, error);
+    vocabularyImageManifests[category] = {};
+    return {};
+  }
+}
+
+export async function checkImageExists(word: string, category: '11plus' | 'music' = '11plus'): Promise<boolean> {
+  try {
+    const manifest = await loadVocabularyImageManifest(category);
+    return word.toLowerCase() in manifest;
   } catch {
     return false;
+  }
+}
+
+export async function getImagePath(word: string, category: '11plus' | 'music' = '11plus'): Promise<string | null> {
+  try {
+    const manifest = await loadVocabularyImageManifest(category);
+    const filename = manifest[word.toLowerCase()];
+    
+    if (filename) {
+      const basePath = process.env.NODE_ENV === 'production' ? '/eleven-plus-vocab' : '';
+      return `${basePath}/images/words/${category}/${filename}`;
+    }
+    
+    return null;
+  } catch {
+    return null;
   }
 }
 

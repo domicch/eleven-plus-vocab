@@ -1,0 +1,18 @@
+{
+  "accent": "accent.png",
+  "crescendo (cresc.)": "crescendo (cresc.).png",
+  "dal segno (d.s.)": "dal segno (d.s.).png",
+  "decrescendo (decresc.)": "decrescendo (decresc.).png",
+  "marcato": "marcato.png",
+  "mezzo-staccato (on more than one note)": "mezzo-staccato (on more than one note).png",
+  "mezzo-staccato (on one note)": "mezzo-staccato (on one note).png",
+  "ottava sign": "ottava sign.png",
+  "pause or ‘fermata’": "pause or ‘fermata’.png",
+  "repeat": "repeat.png",
+  "slur": "slur.png",
+  "staccatissimo": "staccatissimo.png",
+  "staccato": "staccato.png",
+  "strong accent": "strong accent.png",
+  "tenuto": "tenuto.png",
+  "tie": "tie.png"
+}
