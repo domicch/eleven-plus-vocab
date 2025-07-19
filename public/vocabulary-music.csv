@@ -1,10 +1,10 @@
 id,word,definition
-1,A tempo,return to former speed ("in time")
+1,A tempo,"return to former speed (""in time"")"
 2,Accelerando (accel.),gradually becoming faster
 3,Accent,Play strongly
 4,ad libitum (ad lib.),play freely
 5,Adagio,slowly
-6,adagietto,rather slow (not as slow as "adagio")
+6,adagietto,"rather slow (not as slow as ""adagio"")"
 7,agitato,agitated
 8,alla breve,with a minim beat in 2/2 (usually faster than 4/4)
 9,allargando,becoming broader
@@ -12,19 +12,19 @@ id,word,definition
 11,Allegro,lively and fast
 12,amore/amoroso,love/loving
 13,Andante,at an easy walking pace
-14,andantino,literally "small andante"; slightly faster OR slower than "andante" (walking pace)
+14,andantino,"literally ""small andante""; slightly faster OR slower than ""andante"" (walking pace)"
 15,animato,animated / lively
-16,assai,very ( e.g. "allegro assai" = very quick)
+16,assai,"very ( e.g. ""allegro assai"" = very quick)"
 17,ben marcato,well marked
 18,Cantabile,in a singing style
 19,comodo,convenient/comfortable
-20,con,with (e.g. "con grazia" = with grace)
+20,con,"with (e.g. ""con grazia"" = with grace)"
 21,con anima,with feeling / with spirit
 22,con brio,with vigour
 23,con forza,with force
 24,con moto,with movement
 25,Crescendo (cresc.),gradually becoming louder
-26,Da Capo al fine (D.C. al fine),from the beginning until "fine"
+26,Da Capo al fine (D.C. al fine),"from the beginning until ""fine"""
 27,Dal Segno (D.S.),from the sign
 28,deciso,with determination
 29,Decrescendo (decresc.),gradually becoming softer
@@ -42,10 +42,9 @@ id,word,definition
 41,grazioso,gracefully
 42,largamente,broadly
 43,Largo,broadly / slowly
-44,larghetto,rather broadly (i.e. not as slow as "largo")
+44,larghetto,"rather broadly (i.e. not as slow as ""largo"")"
 45,Legato,smooth and well connected
 46,Leggiero,lightly
-47,leggiero,lightly
 48,Lento,slowly
 49,maestoso,majestically
 50,marcato,play strongly
@@ -58,7 +57,7 @@ id,word,definition
 57,mezzo-staccato (on one note),moderately short and detached
 58,Moderato,at a moderate speed
 59,Molto,very
-60,molto,very (e.g. "molto espr." = very expressive)
+60,molto,"very (e.g. ""molto espr."" = very expressive)"
 61,non troppo,not too much
 62,Ottava sign,Play one octave higher or lower than written
 63,fermata,Hold for longer than written value
@@ -68,7 +67,7 @@ id,word,definition
 67,piu mosso,more speed (faster)
 68,Poco,a little
 69,presto,very fast
-70,prima/primo,first (e.g. "prima volta" = first time)
+70,prima/primo,"first (e.g. ""prima volta"" = first time)"
 71,Rallentando (rall.),gradually becoming slower
 72,Repeat,Repeat the music between the dots
 73,risoluto,bold / resolute
@@ -96,3 +95,24 @@ id,word,definition
 95,tranquillo,calmly
 96,triste/tristamente,sadly/sorrowfully
 97,vivace/vivo,lively and spirited
+98,fine,the end
+99,alla marcia,in the style of a march
+100,col / con,with
+101,e / ed,and
+102,ma,but
+103,meno,less
+104,piu,more
+105,bar rest indication,rest for the number of bars indicated
+106,prestissimo,very fast
+107,marcato (marc.),emphatic / accented
+108,trill,"a quavering or vibratory sound, especially a rapid alternation of sung or played notes"
+109,upper mordent,a rapid alternation of a note with the note immediately above it in the scale
+110,lower mordent,a rapid alternation of a note with the note immediately below it in the scale
+111,acciaccatura,a grace note performed as quickly as possible before an essential note of a melody
+112,appoggiatura,"a grace note which delays the next note of the melody, taking half or more of its written time value"
+113,turn,"divides the note over which it is placed (the principal note) into four notes: the note of the scale above, the principal note, the semitone below"
+114,affettuoso,tenderly
+115,amabile,pleasant (like the word "amiable")
+116,appassionato,with passion
+117,misterioso,mysterious
+118,come prima,as before
