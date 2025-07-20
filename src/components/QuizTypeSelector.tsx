@@ -5,6 +5,7 @@ import { useState } from 'react';
 export interface QuizTypeSettings {
   includeWordToDefinition: boolean;
   includeImageToWord: boolean;
+  includeMusicFacts: boolean;
 }
 
 interface QuizTypeSelectorProps {
@@ -18,7 +19,7 @@ interface QuizTypeSelectorProps {
 export default function QuizTypeSelector({ 
   category, 
   onSettingsChange, 
-  initialSettings = { includeWordToDefinition: true, includeImageToWord: false },
+  initialSettings = { includeWordToDefinition: true, includeImageToWord: false, includeMusicFacts: false },
   hasImagesAvailable,
   imageCount = 0
 }: QuizTypeSelectorProps) {
@@ -28,7 +29,7 @@ export default function QuizTypeSelector({
     const newSettings = { ...settings, [setting]: value };
     
     // Ensure at least one question type is always selected
-    if (!newSettings.includeWordToDefinition && !newSettings.includeImageToWord) {
+    if (!newSettings.includeWordToDefinition && !newSettings.includeImageToWord && !newSettings.includeMusicFacts) {
       // If user tries to disable the last remaining type, keep it enabled
       return;
     }
@@ -93,16 +94,48 @@ export default function QuizTypeSelector({
           </div>
           <div className="text-2xl ml-4">🎼</div>
         </div>
+
+        {/* Music Facts Questions */}
+        <div className="flex items-center justify-between p-4 border rounded-lg">
+          <div className="flex-1">
+            <label className="flex items-center cursor-pointer">
+              <input
+                type="checkbox"
+                checked={settings.includeMusicFacts}
+                onChange={(e) => handleSettingChange('includeMusicFacts', e.target.checked)}
+                className="w-5 h-5 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+              />
+              <div className="ml-3">
+                <div className="font-semibold text-gray-800">Music Facts</div>
+                <div className="text-sm text-gray-600">
+                  Answer questions about music theory, instruments, and musical knowledge
+                </div>
+              </div>
+            </label>
+          </div>
+          <div className="text-2xl ml-4">🎵</div>
+        </div>
       </div>
 
       {/* Information about mixed quizzes */}
-      {settings.includeWordToDefinition && settings.includeImageToWord && hasImagesAvailable && (
-        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="text-sm text-blue-800">
-            <strong>Mixed Quiz:</strong> Your quiz will include both question types for a varied learning experience!
-          </div>
-        </div>
-      )}
+      {(() => {
+        const enabledTypes = [
+          settings.includeWordToDefinition,
+          settings.includeImageToWord && hasImagesAvailable,
+          settings.includeMusicFacts
+        ].filter(Boolean).length;
+        
+        if (enabledTypes > 1) {
+          return (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="text-sm text-blue-800">
+                <strong>Mixed Quiz:</strong> Your quiz will include multiple question types for a varied learning experience!
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Warning when no images available */}
       {!hasImagesAvailable && (

@@ -1,0 +1,33 @@
+question_id,answer_id,answer,is_correct
+1,1,viola,false
+1,2,double base,false
+1,3,violin,true
+1,4,cello,false
+2,1,double bass,true
+2,2,violin,false
+2,3,viola,false
+2,4,cello,false
+3,1,cello,false
+3,2,viola,true
+3,3,double bass,false
+3,4,violin,false
+4,1,pizzicato,true
+4,2,arco,false
+4,3,con sordini,false
+4,4,sul G,false
+5,1,play with the bow,false
+5,2,with mute,false
+5,3,without mute,true
+5,4,plucked,false
+6,1,true,false
+6,2,false,true
+7,1,true,false
+7,2,false,true
+8,1,true,true
+8,2,false,false
+9,1,true,true
+9,2,false,false
+10,1,oboe,false
+10,2,flute,false
+10,3,bassoon,true
+10,4,clarinet,false

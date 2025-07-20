@@ -32,7 +32,9 @@ interface QuizSession {
 interface DatabaseQuizQuestion {
   id?: string;
   word_id?: number;
-  word: string;
+  question_id?: number;
+  word?: string;
+  question_text?: string;
   correctAnswer?: string;
   correct_answer?: string;
   correctWord?: string;
@@ -40,8 +42,8 @@ interface DatabaseQuizQuestion {
   options: string[];
   correctIndex?: number;
   correct_index?: number;
-  questionType?: 'word_to_definition' | 'image_to_word';
-  question_type?: 'word_to_definition' | 'image_to_word';
+  questionType?: 'word_to_definition' | 'image_to_word' | 'music_facts';
+  question_type?: 'word_to_definition' | 'image_to_word' | 'music_facts';
 }
 
 interface QuizModeProps {
@@ -82,7 +84,8 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
   const [showQuizTypeSelector, setShowQuizTypeSelector] = useState(false);
   const [quizTypeSettings, setQuizTypeSettings] = useState<QuizTypeSettings>({
     includeWordToDefinition: true,
-    includeImageToWord: false
+    includeImageToWord: false,
+    includeMusicFacts: false
   });
   const [imagesAvailable, setImagesAvailable] = useState(false);
   const [imageCount, setImageCount] = useState(0);
@@ -173,6 +176,14 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     if (quizSession && quizSession.questions.length > 0 && currentQuestionIndex < quizSession.questions.length) {
       const currentQuestion = quizSession.questions[currentQuestionIndex];
       
+      // Skip image loading for music facts questions
+      if (currentQuestion.questionType === 'music_facts') {
+        setImageLoading(false);
+        setHasImage(false);
+        setImagePath(null);
+        return;
+      }
+      
       setImageLoading(true);
       setHasImage(false);
       setImagePath(null);
@@ -245,6 +256,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       include_word_to_definition: boolean;
       include_image_to_word: boolean;
       image_available_word_ids: number[] | null;
+      include_music_facts: boolean;
     }
     
     let rpcParams: BasicRpcParams | MusicRpcParams = {
@@ -272,18 +284,21 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
           ...rpcParams,
           include_word_to_definition: effectiveSettings.includeWordToDefinition,
           include_image_to_word: effectiveSettings.includeImageToWord && imagesAvailable,
-          image_available_word_ids: (effectiveSettings.includeImageToWord && imagesAvailable) ? musicImageIds : null
+          image_available_word_ids: (effectiveSettings.includeImageToWord && imagesAvailable) ? musicImageIds : null,
+          include_music_facts: effectiveSettings.includeMusicFacts
         };
         
         console.log('Final RPC params:', rpcParams);
       } catch (error) {
         console.warn('Could not load music images, using word-to-definition only:', error);
         // Fall back to word-to-definition only if we can't load the images
+        const effectiveSettings = customSettings || quizTypeSettings;
         rpcParams = {
           ...rpcParams,
           include_word_to_definition: true,
           include_image_to_word: false,
-          image_available_word_ids: null
+          image_available_word_ids: null,
+          include_music_facts: effectiveSettings.includeMusicFacts
         };
       }
     }
@@ -314,8 +329,8 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     const transformedQuiz = {
       ...newQuiz,
       questions: newQuiz.questions.map((q: DatabaseQuizQuestion): QuizQuestion => ({
-        id: q.id || (q.word_id ? q.word_id.toString() : ''),
-        word: q.word,
+        id: q.id || (q.word_id ? q.word_id.toString() : (q.question_id ? q.question_id.toString() : '')),
+        word: q.word || q.question_text || '',
         correctAnswer: q.correctAnswer || q.correct_answer || q.correctWord || q.correct_word || '',
         options: q.options,
         correctIndex: q.correctIndex !== undefined ? q.correctIndex : (q.correct_index || 0),
@@ -348,8 +363,8 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       const transformedQuiz = {
         ...quizToResume,
         questions: quizToResume.questions.map((q: DatabaseQuizQuestion): QuizQuestion => ({
-          id: q.id || (q.word_id ? q.word_id.toString() : ''),
-          word: q.word,
+          id: q.id || (q.word_id ? q.word_id.toString() : (q.question_id ? q.question_id.toString() : '')),
+          word: q.word || q.question_text || '',
           correctAnswer: q.correctAnswer || q.correct_answer || q.correctWord || q.correct_word || '',
           options: q.options,
           correctIndex: q.correctIndex !== undefined ? q.correctIndex : (q.correct_index || 0),
@@ -717,6 +732,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
   // Active quiz state
   const currentQuestion = quizSession.questions[currentQuestionIndex];
   const isImageToWord = currentQuestion.questionType === 'image_to_word';
+  const isMusicFacts = currentQuestion.questionType === 'music_facts';
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -743,7 +759,16 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       <div className="bg-white rounded-xl shadow-lg p-8">
         {/* Question */}
         <div className="text-center mb-8">
-          {isImageToWord ? (
+          {isMusicFacts ? (
+            <>
+              <h3 className="text-xl text-gray-600 mb-4">Music Facts</h3>
+              <div className="flex items-center justify-center gap-2 sm:gap-4 mb-6 px-4">
+                <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-800 break-words text-center flex-1 min-w-0">
+                  {currentQuestion.word}
+                </h1>
+              </div>
+            </>
+          ) : isImageToWord ? (
             <>
               <h3 className="text-xl text-gray-600 mb-4">What is this musical notation called?</h3>
               {/* For image-to-word questions, show only the image */}

@@ -458,4 +458,157 @@ describe('music_submitQuizAnswer Database Function', () => {
       expect(quiz.answers_submitted[0]).toHaveProperty('submitted_at');
     });
   });
+
+  describe('Music Facts Question Support', () => {
+    let testQuizId;
+    let availableFactsQuestions = 0;
+
+    beforeAll(async () => {
+      // Check how many music facts questions are available
+      const { count: factsCount } = await supabase
+        .from('music_questions')
+        .select('*', { count: 'exact', head: true });
+      
+      availableFactsQuestions = factsCount || 0;
+      console.log(`Available music facts questions: ${availableFactsQuestions}`);
+    });
+
+    beforeEach(async () => {
+      // Clean up any existing quizzes
+      await supabase
+        .from('music_quiz')
+        .delete()
+        .eq('user_id', testUser.id);
+
+      if (availableFactsQuestions > 0) {
+        // Create a test quiz with music facts questions
+        const { data: quizResult } = await supabase.rpc('music_generatequiz', {
+          user_id: testUser.id,
+          question_count: 2,
+          include_word_to_definition: false,
+          include_image_to_word: false,
+          include_music_facts: true
+        });
+
+        testQuizId = quizResult.quiz_id;
+      }
+    });
+
+    test('should handle music facts question answers correctly', async () => {
+      if (availableFactsQuestions === 0) {
+        console.warn('Skipping music facts submit test - no data available');
+        return;
+      }
+
+      // Submit answer for the first question
+      const { data, error } = await supabase.rpc('music_submitquizanswer', {
+        quiz_id: testQuizId,
+        question_index: 0,
+        selected_answer_index: 1
+      });
+
+      expect(error).toBeNull();
+      expect(data).toHaveProperty('success', true);
+      expect(data).toHaveProperty('is_correct');
+      expect(data).toHaveProperty('new_score');
+      expect(data).toHaveProperty('quiz_completed');
+      expect(typeof data.is_correct).toBe('boolean');
+      expect(typeof data.new_score).toBe('number');
+      expect(typeof data.quiz_completed).toBe('boolean');
+    });
+
+    test('should validate music facts question structure', async () => {
+      if (availableFactsQuestions === 0) {
+        console.warn('Skipping music facts validation test - no data available');
+        return;
+      }
+
+      // Get the quiz to examine its structure
+      const { data: quiz } = await supabase
+        .from('music_quiz')
+        .select('*')
+        .eq('id', testQuizId)
+        .single();
+
+      // Verify the quiz has music facts questions
+      expect(quiz.questions).toBeDefined();
+      expect(quiz.questions.length).toBeGreaterThan(0);
+
+      const musicFactsQuestion = quiz.questions.find(q => q.question_type === 'music_facts');
+      expect(musicFactsQuestion).toBeDefined();
+      expect(musicFactsQuestion).toHaveProperty('question_text');
+      expect(musicFactsQuestion).toHaveProperty('question_id');
+      expect(musicFactsQuestion).toHaveProperty('options');
+      expect(musicFactsQuestion).toHaveProperty('correct_index');
+    });
+
+    test('should track progress correctly for music facts questions', async () => {
+      if (availableFactsQuestions === 0) {
+        console.warn('Skipping music facts progress test - no data available');
+        return;
+      }
+
+      // Submit answer for the first question
+      await supabase.rpc('music_submitquizanswer', {
+        quiz_id: testQuizId,
+        question_index: 0,
+        selected_answer_index: 0
+      });
+
+      // Check the quiz state after submission
+      const { data: quiz } = await supabase
+        .from('music_quiz')
+        .select('*')
+        .eq('id', testQuizId)
+        .single();
+
+      expect(quiz.current_question_index).toBe(1);
+      expect(quiz.answers_submitted).toHaveLength(1);
+      expect(quiz.answers_submitted[0]).toHaveProperty('question_index', 0);
+      expect(quiz.answers_submitted[0]).toHaveProperty('selected_answer_index', 0);
+      expect(quiz.answers_submitted[0]).toHaveProperty('is_correct');
+    });
+
+    test('should handle mixed quiz with vocabulary and music facts', async () => {
+      if (availableFactsQuestions === 0) {
+        console.warn('Skipping mixed quiz submit test - no data available');
+        return;
+      }
+
+      // Clean up and create a mixed quiz
+      await supabase.from('music_quiz').delete().eq('user_id', testUser.id);
+
+      const { data: mixedQuizResult } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 4,
+        include_word_to_definition: true,
+        include_image_to_word: false,
+        include_music_facts: true
+      });
+
+      const mixedQuizId = mixedQuizResult.quiz_id;
+
+      // Submit answer for the first question (could be either type)
+      const { data, error } = await supabase.rpc('music_submitquizanswer', {
+        quiz_id: mixedQuizId,
+        question_index: 0,
+        selected_answer_index: 1
+      });
+
+      expect(error).toBeNull();
+      expect(data).toHaveProperty('success', true);
+      expect(data).toHaveProperty('is_correct');
+      expect(data).toHaveProperty('new_score');
+
+      // Verify the answer was recorded
+      const { data: quiz } = await supabase
+        .from('music_quiz')
+        .select('*')
+        .eq('id', mixedQuizId)
+        .single();
+
+      expect(quiz.current_question_index).toBe(1);
+      expect(quiz.answers_submitted).toHaveLength(1);
+    });
+  });
 });

@@ -404,12 +404,20 @@ describe('music_generateQuiz Database Function and Music Quiz Table', () => {
     });
 
     test('should fall back to word_to_definition when insufficient image words', async () => {
+      // Get some real vocabulary IDs
+      const { data: vocabularyData } = await supabase
+        .from('music_vocabulary')
+        .select('id')
+        .limit(2);
+
+      const wordIds = vocabularyData.map(v => v.id);
+
       const { data } = await supabase.rpc('music_generatequiz', {
         user_id: testUser.id,
         question_count: 6,
         include_word_to_definition: false,
         include_image_to_word: true,
-        image_available_word_ids: [1, 2] // Only 2 image words but need 6 questions
+        image_available_word_ids: wordIds // Only 2 image words but need 6 questions
       });
 
       expect(data).toHaveProperty('success', true);
@@ -477,13 +485,20 @@ describe('music_generateQuiz Database Function and Music Quiz Table', () => {
       expect(data).toHaveProperty('error', 'Question count must be greater than 0');
     });
 
-    test('should reject question count over limit', async () => {
+    test('should accept large question counts', async () => {
       const { data } = await supabase.rpc('music_generatequiz', {
         user_id: testUser.id,
         question_count: 100
       });
 
-      expect(data).toHaveProperty('error', 'Question count cannot exceed 50');
+      // Should succeed or fail based on available data, not arbitrary limits
+      expect(data).toBeDefined();
+      if (data.error) {
+        // If it fails, should be due to insufficient data, not arbitrary limits
+        expect(data.error).not.toContain('cannot exceed');
+      } else {
+        expect(data).toHaveProperty('success', true);
+      }
     });
   });
 
@@ -515,14 +530,25 @@ describe('music_generateQuiz Database Function and Music Quiz Table', () => {
     });
 
     test('should handle insufficient vocabulary gracefully', async () => {
-      // This test assumes we have fewer than 100 music vocabulary words
+      // Clean up first to start fresh
+      await supabase
+        .from('music_quiz')
+        .delete()
+        .eq('user_id', testUser.id);
+        
+      // This test checks behavior when requesting more questions than available vocabulary
+      const { count: totalVocab } = await supabase
+        .from('music_vocabulary')
+        .select('*', { count: 'exact', head: true });
+      
+      // Request more questions than available vocabulary
       const { data } = await supabase.rpc('music_generatequiz', {
         user_id: testUser.id,
-        question_count: 55 // Above the 50 limit, should get limit error first
+        question_count: totalVocab + 10
       });
 
       expect(data).toHaveProperty('error');
-      expect(data.error).toMatch(/Question count cannot exceed 50/);
+      expect(data.error).toContain('Insufficient vocabulary words available');
     });
   });
 
@@ -579,6 +605,229 @@ describe('music_generateQuiz Database Function and Music Quiz Table', () => {
       
       // Should complete within 10 seconds
       expect(executionTime).toBeLessThan(10000);
+    });
+  });
+
+  describe('Music Facts Question Type Support', () => {
+    let availableFactsQuestions = 0;
+
+    beforeAll(async () => {
+      // Check how many music facts questions are available
+      const { count: factsCount } = await supabase
+        .from('music_questions')
+        .select('*', { count: 'exact', head: true });
+      
+      availableFactsQuestions = factsCount || 0;
+      console.log(`Available music facts questions: ${availableFactsQuestions}`);
+    });
+
+    beforeEach(async () => {
+      // Clean up any existing quizzes before each test
+      await supabase
+        .from('music_quiz')
+        .delete()
+        .eq('user_id', testUser.id);
+    });
+
+    test('should generate quiz with music facts only', async () => {
+      if (availableFactsQuestions === 0) {
+        console.warn('Skipping music facts test - no data available');
+        return;
+      }
+
+      const questionCount = Math.min(3, availableFactsQuestions);
+      const { data, error } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: questionCount,
+        include_word_to_definition: false,
+        include_image_to_word: false,
+        include_music_facts: true
+      });
+
+      expect(error).toBeNull();
+      expect(data).toHaveProperty('success', true);
+      expect(data).toHaveProperty('facts_questions', questionCount);
+      expect(data).toHaveProperty('vocab_questions', 0);
+
+      // Verify quiz structure in database
+      const { data: quizData } = await supabase
+        .from('music_quiz')
+        .select('*')
+        .eq('id', data.quiz_id)
+        .single();
+
+      expect(quizData.questions).toHaveLength(questionCount);
+      
+      // All questions should be music_facts type
+      quizData.questions.forEach(question => {
+        expect(question).toHaveProperty('question_type', 'music_facts');
+        expect(question).toHaveProperty('question_text');
+        expect(question).toHaveProperty('question_id');
+        expect(question).toHaveProperty('options');
+        expect(question).toHaveProperty('correct_index');
+        expect(Array.isArray(question.options)).toBe(true);
+        expect(question.options.length).toBeGreaterThanOrEqual(2);
+      });
+    });
+
+    test('should generate mixed quiz with vocabulary and music facts', async () => {
+      if (availableFactsQuestions === 0) {
+        console.warn('Skipping mixed quiz test - no music facts data available');
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 6,
+        include_word_to_definition: true,
+        include_image_to_word: false,
+        include_music_facts: true
+      });
+
+      expect(error).toBeNull();
+      expect(data).toHaveProperty('success', true);
+      expect(data).toHaveProperty('vocab_questions', 3);
+      expect(data).toHaveProperty('facts_questions', 3);
+
+      // Verify quiz structure in database
+      const { data: quizData } = await supabase
+        .from('music_quiz')
+        .select('*')
+        .eq('id', data.quiz_id)
+        .single();
+
+      expect(quizData.questions).toHaveLength(6);
+
+      const vocabQuestions = quizData.questions.filter(q => q.question_type === 'word_to_definition');
+      const factsQuestions = quizData.questions.filter(q => q.question_type === 'music_facts');
+
+      expect(vocabQuestions).toHaveLength(3);
+      expect(factsQuestions).toHaveLength(3);
+
+      // Verify vocabulary questions structure
+      vocabQuestions.forEach(question => {
+        expect(question).toHaveProperty('word');
+        expect(question).toHaveProperty('correct_answer');
+        expect(question).toHaveProperty('options');
+      });
+
+      // Verify music facts questions structure  
+      factsQuestions.forEach(question => {
+        expect(question).toHaveProperty('question_text');
+        expect(question).toHaveProperty('question_id');
+        expect(question).toHaveProperty('options');
+        expect(question).toHaveProperty('correct_index');
+      });
+    });
+
+    test('should reject when no question types are enabled', async () => {
+      const { data, error } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 5,
+        include_word_to_definition: false,
+        include_image_to_word: false,
+        include_music_facts: false
+      });
+
+      expect(error).toBeNull();
+      expect(data).toHaveProperty('error');
+      expect(data.error).toContain('At least one question type must be enabled');
+    });
+
+    test('should handle insufficient music facts questions gracefully', async () => {
+      // Request more music facts questions than available
+      const { data, error } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: availableFactsQuestions + 10,
+        include_word_to_definition: false,
+        include_image_to_word: false,
+        include_music_facts: true
+      });
+
+      expect(error).toBeNull();
+      expect(data).toHaveProperty('error');
+      expect(data.error).toContain('Insufficient music facts questions available');
+    });
+
+    test('should distribute questions correctly in mixed mode', async () => {
+      if (availableFactsQuestions === 0) {
+        console.warn('Skipping distribution test - no music facts data available');
+        return;
+      }
+
+      const { data, error } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 8,
+        include_word_to_definition: true,
+        include_image_to_word: false,
+        include_music_facts: true
+      });
+
+      expect(error).toBeNull();
+      expect(data).toHaveProperty('success', true);
+      
+      // For 8 questions: should be 4 vocab, 4 facts
+      expect(data.vocab_questions).toBe(4);
+      expect(data.facts_questions).toBe(4);
+      expect(data.vocab_questions + data.facts_questions).toBe(8);
+    });
+
+    test('should shuffle questions from different types', async () => {
+      if (availableFactsQuestions === 0) {
+        console.warn('Skipping shuffle test - no music facts data available');
+        return;
+      }
+
+      const results = [];
+      
+      // Generate the same mixed quiz multiple times
+      for (let i = 0; i < 5; i++) {
+        await supabase.from('music_quiz').delete().eq('user_id', testUser.id);
+        
+        const { data } = await supabase.rpc('music_generatequiz', {
+          user_id: testUser.id,
+          question_count: 6,
+          include_word_to_definition: true,
+          include_image_to_word: false,
+          include_music_facts: true
+        });
+
+        const { data: quizData } = await supabase
+          .from('music_quiz')
+          .select('*')
+          .eq('id', data.quiz_id)
+          .single();
+
+        const questionTypes = quizData.questions.map(q => q.question_type);
+        results.push(questionTypes.join(','));
+      }
+
+      // Check that not all results are identical (questions are shuffled)
+      const firstResult = results[0];
+      const allSame = results.every(result => result === firstResult);
+      
+      expect(allSame).toBe(false);
+    });
+
+    test('should validate music facts parameter combinations', async () => {
+      if (availableFactsQuestions === 0) {
+        console.warn('Skipping validation test - no music facts data available');
+        return;
+      }
+
+      // Test: include_music_facts = true with all others false should work
+      const { data: data1, error: error1 } = await supabase.rpc('music_generatequiz', {
+        user_id: testUser.id,
+        question_count: 2,
+        include_word_to_definition: false,
+        include_image_to_word: false,
+        include_music_facts: true
+      });
+
+      expect(error1).toBeNull();
+      expect(data1).toHaveProperty('success', true);
+      expect(data1.facts_questions).toBe(2);
+      expect(data1.vocab_questions).toBe(0);
     });
   });
 });

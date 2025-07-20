@@ -271,6 +271,6 @@ export type QuizQuestion = {
   correctAnswer: string
   options: string[]
   correctIndex: number
-  questionType?: 'word_to_definition' | 'image_to_word'
+  questionType?: 'word_to_definition' | 'image_to_word' | 'music_facts'
   correctWord?: string // For image-to-word questions
 }
