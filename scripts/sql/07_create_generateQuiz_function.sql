@@ -32,14 +32,15 @@ BEGIN
     RETURN jsonb_build_object('error', 'Question count cannot exceed 50');
   END IF;
   
-  -- Check if user already has an active quiz
+  -- Check if user already has an active normal quiz
   SELECT COUNT(*) FROM quiz 
   WHERE quiz.user_id = generatequiz.user_id 
     AND status = 'active' 
+    AND mode = 'normal'
   INTO i;
   
   IF i > 0 THEN
-    RETURN jsonb_build_object('error', 'User already has an active quiz');
+    RETURN jsonb_build_object('error', 'User already has an active normal quiz');
   END IF;
   
   -- Check if we have enough vocabulary words
@@ -93,21 +94,23 @@ BEGIN
   -- Generate UUID for the new quiz
   v_quiz_id := gen_random_uuid();
   
-  -- Insert the quiz into the database
+  -- Insert the quiz into the database with mode = 'normal'
   INSERT INTO quiz (
     id,
     user_id,
     status,
     total_questions,
     questions,
-    created_at
+    created_at,
+    mode
   ) VALUES (
     v_quiz_id,
     user_id,
     'active',
     question_count,
     v_questions,
-    NOW()
+    NOW(),
+    'normal'
   );
   
   -- Return success with quiz ID

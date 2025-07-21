@@ -526,7 +526,7 @@ describe('music_generateQuiz Database Function and Music Quiz Table', () => {
         question_count: 5
       });
 
-      expect(secondQuiz).toHaveProperty('error', 'User already has an active music quiz');
+      expect(secondQuiz).toHaveProperty('error', 'User already has an active normal music quiz');
     });
 
     test('should handle insufficient vocabulary gracefully', async () => {

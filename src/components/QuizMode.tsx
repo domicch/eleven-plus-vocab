@@ -20,6 +20,7 @@ interface QuizSession {
   score: number | null;
   current_question_index?: number;
   current_score?: number;
+  mode?: 'normal' | 'ultimate';
   answers_submitted?: Array<{
     question_index: number;
     selected_answer_index: number;
@@ -49,9 +50,10 @@ interface DatabaseQuizQuestion {
 interface QuizModeProps {
   vocabulary: unknown[]; // Keep for compatibility but won't be used
   category: '11plus' | 'music';
+  isUltimate?: boolean;
 }
 
-export default function QuizMode({ vocabulary, category }: QuizModeProps) {
+export default function QuizMode({ vocabulary, category, isUltimate = false }: QuizModeProps) {
   // Suppress unused parameter warning - keeping for compatibility
   void vocabulary;
   
@@ -67,7 +69,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showResumePrompt, setShowResumePrompt] = useState(false);
-  const [pendingActiveQuizzes, setPendingActiveQuizzes] = useState<QuizSession[]>([]);
+  const [currentModeQuizzes, setCurrentModeQuizzes] = useState<QuizSession[]>([]);
   const [hasImage, setHasImage] = useState(false);
   const [imagePath, setImagePath] = useState<string | null>(null);
   const [imageLoading, setImageLoading] = useState(false);
@@ -169,7 +171,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     if (user && !quizSession && !loadingRef.current) {
       loadOrCreateQuiz();
     }
-  }, [user, quizSession]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user, quizSession, isUltimate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check for image when question changes
   useEffect(() => {
@@ -204,27 +206,28 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     setError(null);
 
     try {
-      // First, check if user has an active quiz
+      // Check for active quizzes in current mode only
       const tableName = category === '11plus' ? 'quiz' : 'music_quiz';
-      const { data: activeQuizzes, error: activeQuizError } = await supabase
+      const { data: currentModeQuizzes, error: activeQuizError } = await supabase
         .from(tableName)
         .select('*')
         .eq('user_id', user.id)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .eq('mode', isUltimate ? 'ultimate' : 'normal');
 
       if (activeQuizError) {
         throw new Error(`Error loading active quiz: ${activeQuizError.message}`);
       }
 
-      if (activeQuizzes && activeQuizzes.length > 0) {
+      if (currentModeQuizzes && currentModeQuizzes.length > 0) {
         // Show resume prompt to user
-        setPendingActiveQuizzes(activeQuizzes);
+        setCurrentModeQuizzes(currentModeQuizzes);
         setShowResumePrompt(true);
         return; // Exit early, user will decide via prompt
       }
 
-      // No active quizzes, show quiz type selector for music or create new one for 11plus
-      if (category === 'music' && !showQuizTypeSelector) {
+      // No active quizzes, show quiz type selector for music normal mode or create new one directly
+      if (category === 'music' && !isUltimate && !showQuizTypeSelector) {
         setShowQuizTypeSelector(true);
         return;
       } else {
@@ -243,26 +246,45 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     if (!supabase) throw new Error('Supabase client not available');
     if (!user) throw new Error('User not authenticated');
     
-    const functionName = category === '11plus' ? 'generatequiz' : 'music_generatequiz';
+    const functionName = isUltimate 
+      ? (category === '11plus' ? 'generatequiz_ultimate' : 'music_generatequiz_ultimate')
+      : (category === '11plus' ? 'generatequiz' : 'music_generatequiz');
     
     // For music quizzes, we can support mixed question types
     // For now, default to word-to-definition only, but this can be enhanced later
     interface BasicRpcParams {
       user_id: string;
-      question_count: number;
+      question_count?: number; // Optional for ultimate quizzes
+    }
+    
+    interface UltimateRpcParams {
+      user_id: string;
     }
     
     interface MusicRpcParams extends BasicRpcParams {
-      include_word_to_definition: boolean;
-      include_image_to_word: boolean;
-      image_available_word_ids: number[] | null;
-      include_music_facts: boolean;
+      include_word_to_definition?: boolean;
+      include_image_to_word?: boolean;
+      image_available_word_ids?: number[] | null;
+      include_music_facts?: boolean;
     }
     
-    let rpcParams: BasicRpcParams | MusicRpcParams = {
-      user_id: user.id,
-      question_count: 10
-    };
+    interface MusicUltimateRpcParams extends UltimateRpcParams {
+      image_available_word_ids: number[];
+    }
+    
+    let rpcParams: BasicRpcParams | MusicRpcParams | UltimateRpcParams | MusicUltimateRpcParams;
+    
+    if (isUltimate) {
+      // Ultimate quizzes only need user_id - they use ALL vocabulary
+      rpcParams = {
+        user_id: user.id
+      };
+    } else {
+      rpcParams = {
+        user_id: user.id,
+        question_count: 10
+      };
+    }
     
     // If music category, add support for image-to-word questions
     if (category === 'music') {
@@ -270,7 +292,17 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
         // Use the new vocabulary utilities to get available image word IDs
         const musicImageIds = await getVocabularyWordsWithImages(category);
         
-        const effectiveSettings = customSettings || quizTypeSettings;
+        let effectiveSettings: QuizTypeSettings;
+        if (isUltimate) {
+          // Ultimate music quiz automatically selects intelligent question types
+          effectiveSettings = {
+            includeWordToDefinition: true,
+            includeImageToWord: true,
+            includeMusicFacts: true
+          };
+        } else {
+          effectiveSettings = customSettings || quizTypeSettings;
+        }
         
         console.log('Creating quiz with settings:', {
           customSettings,
@@ -280,26 +312,44 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
           musicImageIds: musicImageIds.length
         });
         
-        rpcParams = {
-          ...rpcParams,
-          include_word_to_definition: effectiveSettings.includeWordToDefinition,
-          include_image_to_word: effectiveSettings.includeImageToWord && imagesAvailable,
-          image_available_word_ids: (effectiveSettings.includeImageToWord && imagesAvailable) ? musicImageIds : null,
-          include_music_facts: effectiveSettings.includeMusicFacts
-        };
+        if (isUltimate) {
+          // Ultimate music quiz uses special parameters
+          rpcParams = {
+            user_id: user.id,
+            image_available_word_ids: musicImageIds
+          } as MusicUltimateRpcParams;
+        } else {
+          // Normal music quiz uses detailed settings
+          rpcParams = {
+            ...rpcParams,
+            include_word_to_definition: effectiveSettings.includeWordToDefinition,
+            include_image_to_word: effectiveSettings.includeImageToWord && imagesAvailable,
+            image_available_word_ids: (effectiveSettings.includeImageToWord && imagesAvailable) ? musicImageIds : null,
+            include_music_facts: effectiveSettings.includeMusicFacts
+          };
+        }
         
         console.log('Final RPC params:', rpcParams);
       } catch (error) {
         console.warn('Could not load music images, using word-to-definition only:', error);
-        // Fall back to word-to-definition only if we can't load the images
-        const effectiveSettings = customSettings || quizTypeSettings;
-        rpcParams = {
-          ...rpcParams,
-          include_word_to_definition: true,
-          include_image_to_word: false,
-          image_available_word_ids: null,
-          include_music_facts: effectiveSettings.includeMusicFacts
-        };
+        
+        if (isUltimate) {
+          // Ultimate fallback with no images
+          rpcParams = {
+            user_id: user.id,
+            image_available_word_ids: []
+          } as MusicUltimateRpcParams;
+        } else {
+          // Normal fallback to word-to-definition only if we can't load the images
+          const effectiveSettings = customSettings || quizTypeSettings;
+          rpcParams = {
+            ...rpcParams,
+            include_word_to_definition: true,
+            include_image_to_word: false,
+            image_available_word_ids: null,
+            include_music_facts: effectiveSettings.includeMusicFacts
+          };
+        }
       }
     }
     
@@ -342,14 +392,14 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
   };
 
   const handleResumeQuiz = async () => {
-    if (!supabase || pendingActiveQuizzes.length === 0) return;
+    if (!supabase || currentModeQuizzes.length === 0) return;
 
     try {
       setLoading(true);
       
       // Resume the first quiz and abandon the rest
-      const quizToResume = pendingActiveQuizzes[0];
-      const quizzesToAbandon = pendingActiveQuizzes.slice(1);
+      const quizToResume = currentModeQuizzes[0];
+      const quizzesToAbandon = currentModeQuizzes.slice(1);
 
       if (quizzesToAbandon.length > 0) {
         const abandonIds = quizzesToAbandon.map(quiz => quiz.id);
@@ -386,28 +436,28 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       setError(err instanceof Error ? err.message : 'Failed to resume quiz');
     } finally {
       setShowResumePrompt(false);
-      setPendingActiveQuizzes([]);
+      setCurrentModeQuizzes([]);
       setLoading(false);
       loadingRef.current = false;
     }
   };
 
   const handleStartNewQuiz = async () => {
-    if (!supabase || pendingActiveQuizzes.length === 0) return;
+    if (!supabase || currentModeQuizzes.length === 0) return;
 
     try {
       setLoading(true);
       
-      // Delete all active quizzes
-      const quizIds = pendingActiveQuizzes.map(quiz => quiz.id);
+      // Delete all current mode active quizzes
+      const quizIds = currentModeQuizzes.map(quiz => quiz.id);
       const tableName = category === '11plus' ? 'quiz' : 'music_quiz';
       await supabase
         .from(tableName)
         .delete()
         .in('id', quizIds);
 
-      // Show quiz type selector for music or create new quiz directly for 11plus
-      if (category === 'music') {
+      // Show quiz type selector for music normal mode or create new quiz directly
+      if (category === 'music' && !isUltimate) {
         setShowQuizTypeSelector(true);
       } else {
         await createNewQuiz();
@@ -418,7 +468,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       setError(err instanceof Error ? err.message : 'Failed to start new quiz');
     } finally {
       setShowResumePrompt(false);
-      setPendingActiveQuizzes([]);
+      setCurrentModeQuizzes([]);
       setLoading(false);
       loadingRef.current = false;
     }
@@ -589,8 +639,8 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     );
   }
 
-  // Show quiz type selector if no active quiz and music category
-  if (!quizSession && !loading && !showResumePrompt && user && category === 'music' && showQuizTypeSelector) {
+  // Show quiz type selector if no active quiz and music category (but not for ultimate mode)
+  if (!quizSession && !loading && !showResumePrompt && user && category === 'music' && !isUltimate && showQuizTypeSelector) {
     return (
       <div className="max-w-4xl mx-auto p-6">
         <QuizTypeSelector
@@ -629,7 +679,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
           <h2 className="text-2xl font-bold text-blue-600 mb-4">Resume Quiz?</h2>
           <div className="text-4xl mb-4">🤔</div>
           <p className="text-lg text-gray-700 mb-2">
-            You have {pendingActiveQuizzes.length} unfinished quiz{pendingActiveQuizzes.length > 1 ? 'es' : ''}.
+            You have {currentModeQuizzes.length} unfinished {isUltimate ? 'ultimate' : 'normal'} quiz{currentModeQuizzes.length > 1 ? 'es' : ''}.
           </p>
           <p className="text-gray-600 mb-8">
             Would you like to resume your quiz or start a new one?
@@ -652,15 +702,17 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
               className={`px-8 py-3 rounded-lg font-semibold transition-colors ${
                 loading
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+                  : isUltimate
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-purple-600 hover:bg-purple-700 text-white'
               }`}
             >
-              {loading ? 'Loading...' : 'Start New Quiz'}
+              {loading ? 'Loading...' : `Start New ${isUltimate ? 'Ultimate ' : ''}Quiz`}
             </button>
           </div>
-          {pendingActiveQuizzes.length > 1 && (
+          {currentModeQuizzes.length > 1 && (
             <p className="text-sm text-gray-500 mt-4">
-              Note: If you resume, the other quizzes will be deleted.
+              Note: Starting a new quiz will delete other unfinished {isUltimate ? 'ultimate' : 'normal'} quizzes.
             </p>
           )}
         </div>
@@ -738,8 +790,10 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
     <div className="max-w-4xl mx-auto p-6">
       <div className="mb-6 text-center">
         <div className="flex items-center justify-center gap-4 mb-2">
-          <h2 className="text-3xl font-bold text-purple-600">Quiz Mode</h2>
-          {category === 'music' && (
+          <h2 className={`text-3xl font-bold ${isUltimate ? 'text-red-600' : 'text-purple-600'}`}>
+            {isUltimate ? 'Ultimate Quiz Mode' : 'Quiz Mode'}
+          </h2>
+          {category === 'music' && !isUltimate && (
             <button
               onClick={() => setShowQuizTypeSelector(true)}
               className="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-full transition-colors"
@@ -841,7 +895,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
                       src={imagePath!}
                       alt={currentQuestion.word}
                       fill
-                      className="object-cover"
+                      className="object-contain p-2"
                       onError={() => {
                         setHasImage(false);
                       }}
@@ -897,7 +951,9 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
               className={`px-8 py-3 rounded-lg font-semibold transition-colors ${
                 selectedAnswer === null
                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-purple-600 hover:bg-purple-700 text-white'
+                  : isUltimate 
+                    ? 'bg-red-600 hover:bg-red-700 text-white'
+                    : 'bg-purple-600 hover:bg-purple-700 text-white'
               }`}
             >
               Submit Answer
@@ -918,7 +974,7 @@ export default function QuizMode({ vocabulary, category }: QuizModeProps) {
       {/* Progress Bar */}
       <div className="mt-6 bg-gray-200 rounded-full h-2">
         <div
-          className="bg-purple-600 h-2 rounded-full transition-all duration-300"
+          className={`${isUltimate ? 'bg-red-600' : 'bg-purple-600'} h-2 rounded-full transition-all duration-300`}
           style={{ width: `${((currentQuestionIndex + 1) / quizSession.questions.length) * 100}%` }}
         ></div>
       </div>

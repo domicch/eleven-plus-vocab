@@ -13,7 +13,7 @@ import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
-type Mode = 'category' | 'menu' | 'revision' | 'quiz';
+type Mode = 'category' | 'menu' | 'revision' | 'quiz' | 'ultimate-quiz';
 type Category = '11plus' | 'music';
 
 export default function Home() {
@@ -92,6 +92,8 @@ export default function Home() {
         return <RevisionMode vocabulary={vocabulary} category={category || '11plus'} />;
       case 'quiz':
         return <QuizMode vocabulary={vocabulary} category={category || '11plus'} />;
+      case 'ultimate-quiz':
+        return <QuizMode vocabulary={vocabulary} category={category || '11plus'} isUltimate={true} />;
       default:
         return (
           <div className="max-w-4xl mx-auto p-6 text-center">
@@ -168,7 +170,7 @@ export default function Home() {
               </div>
             )}
 
-            <div className="grid md:grid-cols-2 gap-8 max-w-2xl mx-auto">
+            <div className="grid md:grid-cols-3 gap-6 max-w-4xl mx-auto">
               {/* Revision Mode Card */}
               <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
                 <div className="text-4xl mb-4">📚</div>
@@ -189,7 +191,7 @@ export default function Home() {
                 <div className="text-4xl mb-4">🧠</div>
                 <h2 className="text-2xl font-bold text-purple-600 mb-4">Quiz Mode</h2>
                 <p className="text-gray-600 mb-6">
-                  Test your knowledge with multiple choice questions. Track your progress and improve your score.
+                  Test your knowledge with multiple choice questions. 10 random questions to practice.
                 </p>
                 <button
                   onClick={() => setMode('quiz')}
@@ -197,6 +199,27 @@ export default function Home() {
                 >
                   Start Quiz
                 </button>
+              </div>
+
+              {/* Ultimate Quiz Mode Card */}
+              <div className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition-shadow">
+                <div className="text-4xl mb-4">🔥</div>
+                <h2 className="text-2xl font-bold text-red-600 mb-4">Ultimate Quiz</h2>
+                <p className="text-gray-600 mb-6">
+                  Challenge yourself with ALL {vocabulary.length} words. The ultimate test!
+                </p>
+                <button
+                  onClick={() => setMode('ultimate-quiz')}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-6 rounded-lg font-semibold transition-colors"
+                  disabled={!user}
+                >
+                  {user ? 'Start Ultimate Quiz' : 'Login Required'}
+                </button>
+                {!user && (
+                  <p className="text-sm text-gray-500 mt-2 text-center">
+                    Sign in to access Ultimate Quiz
+                  </p>
+                )}
               </div>
             </div>
 
@@ -219,7 +242,7 @@ export default function Home() {
               Back to Menu
             </button>
             <h1 className="text-xl font-semibold text-gray-800">
-              Wocab - {mode === 'revision' ? 'Revision Mode' : 'Quiz Mode'}
+              Wocab - {mode === 'revision' ? 'Revision Mode' : mode === 'ultimate-quiz' ? 'Ultimate Quiz Mode' : 'Quiz Mode'}
             </h1>
             <div className="w-24"></div> {/* Spacer for centering */}
           </div>

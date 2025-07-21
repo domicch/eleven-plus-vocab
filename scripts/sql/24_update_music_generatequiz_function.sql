@@ -46,14 +46,15 @@ BEGIN
     RETURN jsonb_build_object('error', 'At least one question type must be enabled');
   END IF;
   
-  -- Check if user already has an active quiz
+  -- Check if user already has an active normal music quiz
   SELECT COUNT(*) FROM music_quiz 
   WHERE music_quiz.user_id = music_generatequiz.user_id 
     AND status = 'active' 
+    AND mode = 'normal'
   INTO i;
   
   IF i > 0 THEN
-    RETURN jsonb_build_object('error', 'User already has an active music quiz');
+    RETURN jsonb_build_object('error', 'User already has an active normal music quiz');
   END IF;
   
   -- Count available vocabulary words and music facts questions
@@ -245,7 +246,7 @@ BEGIN
   -- Generate UUID for the new quiz
   v_quiz_id := gen_random_uuid();
   
-  -- Insert the quiz into the database
+  -- Insert the quiz into the database with mode = 'normal'
   INSERT INTO music_quiz (
     id,
     user_id,
@@ -255,7 +256,8 @@ BEGIN
     created_at,
     current_question_index,
     current_score,
-    answers_submitted
+    answers_submitted,
+    mode
   ) VALUES (
     v_quiz_id,
     user_id,
@@ -265,7 +267,8 @@ BEGIN
     NOW(),
     0,
     0,
-    '[]'::jsonb
+    '[]'::jsonb,
+    'normal'
   );
   
   -- Return success response

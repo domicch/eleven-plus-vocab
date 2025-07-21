@@ -152,7 +152,7 @@ export default function RevisionMode({ vocabulary, category }: RevisionModeProps
                 alt={currentWord.word}
                 width={320}
                 height={240}
-                className="w-full h-auto object-cover"
+                className="w-full h-auto object-contain"
                 onError={() => {
                   // Handle image load error
                   console.log(`Image not found for: ${currentWord.word}`);

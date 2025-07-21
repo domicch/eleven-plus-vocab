@@ -9,6 +9,7 @@ interface QuizScore {
   score: number;
   total_questions: number;
   completed_at: string;
+  mode: 'normal' | 'ultimate';
 }
 
 interface ScoreHistoryProps {
@@ -19,18 +20,27 @@ interface ScoreHistoryProps {
 export default function ScoreHistory({ user, category }: ScoreHistoryProps) {
   const [scores, setScores] = useState<QuizScore[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMode, setSelectedMode] = useState<'all' | 'normal' | 'ultimate'>('all');
 
   const loadScoreHistory = useCallback(async () => {
     if (!supabase || !user) return;
 
     try {
-      const tableName = category === '11plus' ? 'quiz_scores' : 'music_quiz_scores';
-      const { data, error } = await supabase
+      const tableName = category === '11plus' ? 'quiz' : 'music_quiz';
+      let query = supabase
         .from(tableName)
-        .select('id, score, total_questions, completed_at')
+        .select('id, score, total_questions, completed_at, mode')
         .eq('user_id', user.id)
-        .order('completed_at', { ascending: false })
-        .limit(10); // Show last 10 scores
+        .eq('status', 'completed')
+        .not('score', 'is', null)
+        .order('completed_at', { ascending: false });
+
+      // Filter by mode if not showing all
+      if (selectedMode !== 'all') {
+        query = query.eq('mode', selectedMode);
+      }
+
+      const { data, error } = await query.limit(20); // Show more scores since we have filtering
 
       if (error) {
         console.error('Error loading score history:', error);
@@ -42,7 +52,7 @@ export default function ScoreHistory({ user, category }: ScoreHistoryProps) {
     } finally {
       setLoading(false);
     }
-  }, [user, category]);
+  }, [user, category, selectedMode]);
 
   useEffect(() => {
     if (!supabase || !user) {
@@ -75,6 +85,14 @@ export default function ScoreHistory({ user, category }: ScoreHistoryProps) {
     if (percentage >= 80) return '🎉';
     if (percentage >= 60) return '👍';
     return '📚';
+  };
+
+  const getModeColor = (mode: 'normal' | 'ultimate') => {
+    return mode === 'ultimate' ? 'text-red-600 bg-red-100' : 'text-purple-600 bg-purple-100';
+  };
+
+  const getModeIcon = (mode: 'normal' | 'ultimate') => {
+    return mode === 'ultimate' ? '🔥' : '🧠';
   };
 
   if (!user) {
@@ -110,60 +128,103 @@ export default function ScoreHistory({ user, category }: ScoreHistoryProps) {
     );
   }
 
-  const averageScore = scores.reduce((sum, score) => sum + (score.score / score.total_questions), 0) / scores.length;
+  // Filter scores for statistics
+  const filteredScores = selectedMode === 'all' ? scores : scores.filter(s => s.mode === selectedMode);
 
   return (
     <div className="bg-white rounded-lg shadow-md p-6">
-      <h3 className="text-xl font-semibold text-gray-800 mb-4">
-        📊 Your Quiz History
-      </h3>
-      
-      {/* Summary Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="text-center p-3 bg-blue-50 rounded-lg">
-          <div className="text-2xl font-bold text-blue-600">{scores.length}</div>
-          <div className="text-sm text-gray-600">Quizzes Taken</div>
-        </div>
-        <div className="text-center p-3 bg-green-50 rounded-lg">
-          <div className="text-2xl font-bold text-green-600">
-            {Math.round(averageScore * 100)}%
-          </div>
-          <div className="text-sm text-gray-600">Average Score</div>
-        </div>
-        <div className="text-center p-3 bg-purple-50 rounded-lg">
-          <div className="text-2xl font-bold text-purple-600">
-            {Math.max(...scores.map(s => Math.round((s.score / s.total_questions) * 100)))}%
-          </div>
-          <div className="text-sm text-gray-600">Best Score</div>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-xl font-semibold text-gray-800">
+          📊 Your Quiz History
+        </h3>
+        
+        {/* Mode Filter Buttons */}
+        <div className="flex gap-2">
+          {(['all', 'normal', 'ultimate'] as const).map((mode) => (
+            <button
+              key={mode}
+              onClick={() => setSelectedMode(mode)}
+              className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                selectedMode === mode
+                  ? mode === 'ultimate' 
+                    ? 'bg-red-600 text-white'
+                    : mode === 'normal'
+                    ? 'bg-purple-600 text-white'
+                    : 'bg-blue-600 text-white'
+                  : 'bg-gray-200 text-gray-600 hover:bg-gray-300'
+              }`}
+            >
+              {mode === 'all' ? 'All' : mode === 'ultimate' ? '🔥 Ultimate' : '🧠 Normal'}
+            </button>
+          ))}
         </div>
       </div>
+      
+      {/* Summary Stats */}
+      {filteredScores.length > 0 && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="text-center p-3 bg-blue-50 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600">{filteredScores.length}</div>
+            <div className="text-sm text-gray-600">
+              {selectedMode === 'all' ? 'Total Quizzes' : `${selectedMode === 'ultimate' ? 'Ultimate' : 'Normal'} Quizzes`}
+            </div>
+          </div>
+          <div className="text-center p-3 bg-green-50 rounded-lg">
+            <div className="text-2xl font-bold text-green-600">
+              {Math.round((filteredScores.reduce((sum, score) => sum + (score.score / score.total_questions), 0) / filteredScores.length) * 100)}%
+            </div>
+            <div className="text-sm text-gray-600">Average Score</div>
+          </div>
+          <div className="text-center p-3 bg-purple-50 rounded-lg">
+            <div className="text-2xl font-bold text-purple-600">
+              {Math.max(...filteredScores.map(s => Math.round((s.score / s.total_questions) * 100)))}%
+            </div>
+            <div className="text-sm text-gray-600">Best Score</div>
+          </div>
+        </div>
+      )}
 
       {/* Score List */}
       <div className="space-y-3">
         <h4 className="font-semibold text-gray-700">Recent Scores</h4>
-        {scores.map((scoreEntry) => (
-          <div
-            key={scoreEntry.id}
-            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-          >
-            <div className="flex items-center gap-3">
-              <span className="text-2xl">
-                {getScoreIcon(scoreEntry.score, scoreEntry.total_questions)}
-              </span>
-              <div>
-                <div className={`font-semibold ${getScoreColor(scoreEntry.score, scoreEntry.total_questions)}`}>
-                  {scoreEntry.score}/{scoreEntry.total_questions}
-                  <span className="text-sm text-gray-500 ml-2">
-                    ({Math.round((scoreEntry.score / scoreEntry.total_questions) * 100)}%)
-                  </span>
-                </div>
-                <div className="text-sm text-gray-500">
-                  {formatDate(scoreEntry.completed_at)}
+        {filteredScores.length === 0 ? (
+          <div className="text-center p-6 bg-gray-50 rounded-lg">
+            <div className="text-2xl mb-2">📊</div>
+            <p className="text-gray-600">
+              No {selectedMode === 'all' ? '' : selectedMode} quiz scores yet.
+              {selectedMode !== 'all' && ' Try a different filter or take some quizzes!'}
+            </p>
+          </div>
+        ) : (
+          filteredScores.map((scoreEntry) => (
+            <div
+              key={scoreEntry.id}
+              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">
+                  {getScoreIcon(scoreEntry.score, scoreEntry.total_questions)}
+                </span>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className={`font-semibold ${getScoreColor(scoreEntry.score, scoreEntry.total_questions)}`}>
+                      {scoreEntry.score}/{scoreEntry.total_questions}
+                      <span className="text-sm text-gray-500 ml-2">
+                        ({Math.round((scoreEntry.score / scoreEntry.total_questions) * 100)}%)
+                      </span>
+                    </div>
+                    <span className={`px-2 py-1 text-xs rounded-full ${getModeColor(scoreEntry.mode)}`}>
+                      {getModeIcon(scoreEntry.mode)} {scoreEntry.mode === 'ultimate' ? 'Ultimate' : 'Normal'}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500">
+                    {formatDate(scoreEntry.completed_at)}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );
