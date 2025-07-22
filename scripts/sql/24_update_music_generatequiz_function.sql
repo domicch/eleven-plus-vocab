@@ -116,11 +116,11 @@ BEGIN
     -- Calculate how many questions of each vocabulary type to generate
     IF include_image_to_word AND include_word_to_definition THEN
       -- Mixed mode: roughly half and half, but prioritize available images
-      v_image_question_count := LEAST(array_length(v_image_word_ids, 1), v_vocab_question_count / 2);
+      v_image_question_count := LEAST(COALESCE(array_length(v_image_word_ids, 1), 0), v_vocab_question_count / 2);
       v_word_definition_count := v_vocab_question_count - v_image_question_count;
     ELSIF include_image_to_word THEN
       -- Image-to-word only
-      v_image_question_count := LEAST(array_length(v_image_word_ids, 1), v_vocab_question_count);
+      v_image_question_count := LEAST(COALESCE(array_length(v_image_word_ids, 1), 0), v_vocab_question_count);
       v_word_definition_count := v_vocab_question_count - v_image_question_count;
       
       -- If not enough image words, fall back to word-to-definition
@@ -142,7 +142,7 @@ BEGIN
         LIMIT v_image_question_count
       ) INTO v_word_ids;
       
-      FOR i IN 1 .. array_length(v_word_ids, 1) LOOP
+      FOR i IN 1 .. COALESCE(array_length(v_word_ids, 1), 0) LOOP
         v_word_id := v_word_ids[i];
         
         -- Generate image-to-word question
@@ -180,7 +180,7 @@ BEGIN
         LIMIT v_word_definition_count
       ) INTO v_word_ids;
       
-      FOR i IN 1 .. array_length(v_word_ids, 1) LOOP
+      FOR i IN 1 .. COALESCE(array_length(v_word_ids, 1), 0) LOOP
         v_word_id := v_word_ids[i];
         
         -- Generate word-to-definition question
@@ -220,7 +220,7 @@ BEGIN
     ) INTO v_facts_question_ids;
     
     -- Generate music facts questions
-    FOR i IN 1 .. array_length(v_facts_question_ids, 1) LOOP
+    FOR i IN 1 .. COALESCE(array_length(v_facts_question_ids, 1), 0) LOOP
       v_question_id := v_facts_question_ids[i];
       
       SELECT music_generatequizquestion_direct(v_question_id) INTO v_question_data;
