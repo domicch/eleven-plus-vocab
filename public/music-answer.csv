@@ -31,3 +31,61 @@ question_id,answer_id,answer,is_correct
 10,2,flute,false
 10,3,bassoon,true
 10,4,clarinet,false
+11,1,bassoon,false
+11,2,clarinet,false
+11,3,flute,true
+11,4,oboe,false
+12,1,clarinet,false
+12,2,flute,false
+12,3,oboe,false
+12,4,bassoon,true
+13,1,true,false
+13,2,false,true
+14,1,true,true
+14,2,false,false
+15,1,true,false
+15,2,false,true
+16,1,true,true
+16,2,false,false
+17,1,true,false
+17,2,false,true
+18,1,horn,false
+18,2,trumpet,true
+18,3,tuba,false
+18,4,trombone,false
+19,1,tuba,true
+19,2,horn,false
+19,3,trumpet,false
+19,4,trombone,false
+20,1,horn,false
+20,2,tuba,false
+20,3,trombone,true
+20,4,trumpet,false
+21,1,true,true
+21,2,false,false
+22,1,true,false
+22,2,false,true
+23,1,true,true
+23,2,false,false
+24,1,side drum,false
+24,2,cymbals,false
+24,3,timpani,true
+24,4,bass drum,false
+25,1,timpani,true
+25,2,bass drums,false
+25,3,cymbals,false
+25,4,side drums,false
+26,1,cymbals,false
+26,2,bass drums,false
+26,3,side drums,false
+26,4,kettle drums,true
+27,1,tuba,false
+27,2,horn,false
+27,3,side drum,true
+27,4,double bass,false
+28,1,true,true
+28,2,false,false
+29,1,true,false
+29,2,false,true
+30,1,true,true
+30,2,false,false
