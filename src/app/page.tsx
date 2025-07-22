@@ -5,6 +5,7 @@ import { VocabularyWord } from '@/types/vocabulary';
 import { loadVocabulary, getRandomGreetingImage } from '@/utils/vocabulary';
 import RevisionMode from '@/components/RevisionMode';
 import QuizMode from '@/components/QuizMode';
+import QuizReview from '@/components/QuizReview';
 import Auth from '@/components/Auth';
 import ScoreHistory from '@/components/ScoreHistory';
 import StreakCounter from '@/components/StreakCounter';
@@ -13,7 +14,7 @@ import { supabase } from '@/lib/supabase';
 import type { User } from '@supabase/supabase-js';
 import Image from 'next/image';
 
-type Mode = 'category' | 'menu' | 'revision' | 'quiz' | 'ultimate-quiz';
+type Mode = 'category' | 'menu' | 'revision' | 'quiz' | 'ultimate-quiz' | 'quiz-review';
 type Category = '11plus' | 'music';
 
 export default function Home() {
@@ -23,6 +24,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [greetingImage, setGreetingImage] = useState<string>('');
   const [user, setUser] = useState<User | null>(null);
+  const [reviewQuizId, setReviewQuizId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadWords = async () => {
@@ -73,6 +75,11 @@ export default function Home() {
     setMode('category');
   };
 
+  const handleQuizReview = (quizId: string) => {
+    setReviewQuizId(quizId);
+    setMode('quiz-review');
+  };
+
   if (loading && category) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
@@ -94,6 +101,13 @@ export default function Home() {
         return <QuizMode vocabulary={vocabulary} category={category || '11plus'} />;
       case 'ultimate-quiz':
         return <QuizMode vocabulary={vocabulary} category={category || '11plus'} isUltimate={true} />;
+      case 'quiz-review':
+        return reviewQuizId ? (
+          <QuizReview 
+            quizId={reviewQuizId}
+            category={category || '11plus'}
+          />
+        ) : null;
       default:
         return (
           <div className="max-w-4xl mx-auto p-6 text-center">
@@ -166,7 +180,7 @@ export default function Home() {
             {/* Score History Section (only for logged in users) */}
             {user && (
               <div className="mb-8">
-                <ScoreHistory user={user} category={category || '11plus'} />
+                <ScoreHistory user={user} category={category || '11plus'} onQuizReview={handleQuizReview} />
               </div>
             )}
 

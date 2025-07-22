@@ -15,9 +15,10 @@ interface QuizScore {
 interface ScoreHistoryProps {
   user: User | null;
   category: '11plus' | 'music';
+  onQuizReview: (quizId: string) => void;
 }
 
-export default function ScoreHistory({ user, category }: ScoreHistoryProps) {
+export default function ScoreHistory({ user, category, onQuizReview }: ScoreHistoryProps) {
   const [scores, setScores] = useState<QuizScore[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedMode, setSelectedMode] = useState<'all' | 'normal' | 'ultimate'>('all');
@@ -197,9 +198,10 @@ export default function ScoreHistory({ user, category }: ScoreHistoryProps) {
           </div>
         ) : (
           filteredScores.map((scoreEntry) => (
-            <div
+            <button
               key={scoreEntry.id}
-              className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+              onClick={() => onQuizReview(scoreEntry.id)}
+              className="w-full flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors text-left"
             >
               <div className="flex items-center gap-3">
                 <span className="text-2xl">
@@ -222,7 +224,10 @@ export default function ScoreHistory({ user, category }: ScoreHistoryProps) {
                   </div>
                 </div>
               </div>
-            </div>
+              <div className="text-gray-400 text-sm ml-4">
+                Click to review →
+              </div>
+            </button>
           ))
         )}
       </div>

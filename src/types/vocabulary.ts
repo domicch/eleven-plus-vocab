@@ -33,3 +33,22 @@ export interface VocabularyQuestion {
 
 // Union type for all new question types
 export type NewQuizQuestion = VocabularyQuestion | MusicFactsQuestion;
+
+// Quiz Review interfaces
+export interface QuizReviewAnswer {
+  selected_index: number;
+  is_correct: boolean;
+}
+
+export interface QuizReviewData {
+  quiz_id: string;
+  user_id: string;
+  status: 'completed';
+  questions: NewQuizQuestion[];
+  answers_submitted: QuizReviewAnswer[];
+  score: number;
+  total_questions: number;
+  completed_at: string;
+  mode: 'normal' | 'ultimate';
+  created_at: string;
+}
